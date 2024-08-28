@@ -29,12 +29,11 @@ if __name__ == '__main__':
     if localize_box:
         rospy.wait_for_service('active_localizer')
         active_localizer = rospy.ServiceProxy('active_localizer', Trigger)
-        resp = active_localizer()
-        lfd.compute_final_transform() 
-    
+        resp = active_localizer() # this resp must be a transformation matrix
     try:
+        lfd.compute_final_transform() 
         lfd.load(name_skills)
-        lfd.execute()
+        lfd.execute() #
     except rospy.ROSInterruptException:
         pass
 

@@ -12,7 +12,7 @@ if __name__ == '__main__':
         name_skill = rospy.get_param('/recording_node/name_skill')
         print("Recording skill: ", name_skill)
         lfd = LfD()
-        lfd.traj_rec()
+        lfd.kinesthetic_teaching()
         lfd.save(name_skill)
     except rospy.ROSInterruptException:
         pass

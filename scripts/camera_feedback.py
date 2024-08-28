@@ -47,15 +47,12 @@ class CameraFeedback():
         self.correction_increment = 0.0005
         self.camera_param_sub=rospy.Subscriber("/camera/color/camera_info", CameraInfo, self.camera_info_callback)
 
-        self.marker_pub = rospy.Publisher("/visualization_marker", Marker, queue_size = 2)
-
         self.current_template_pub = rospy.Publisher('/SIFT_corrections', Image, queue_size=0)
 
         self.image_sub = rospy.Subscriber('/camera/color/image_raw', Image, self.image_callback)
 
-        self.cropped_img_pub = rospy.Publisher('/modified_img', Image, queue_size=0)
-
         self.bridge = CvBridge()
+        self._tf_listener = tf.TransformListener()
         
     def image_callback(self, msg):
             # Convert the ROS message to a OpenCV image
@@ -73,7 +70,6 @@ class CameraFeedback():
 
         # self.resized_img_gray=image_process(self.ds_factor,  0, 1, 0, 1)
         self.resized_img_gray=image_process(self.curr_image, self.ds_factor,  self.row_crop_pct_top , self.row_crop_pct_bot, self.col_crop_pct_left, self.col_crop_pct_right)
-        # idx=np.argmin(np.linalg.norm(self.recorded_traj-(self.curr_pos).reshape(3,1),axis=0))
         idx = self.time_index - 1
 
         # initiate SIFT detector
@@ -171,39 +167,16 @@ class CameraFeedback():
         transform = transform_base_2_cam @ transform_correction @ np.linalg.inv(transform_base_2_cam)
 
         transform[2,3] = 0   # ignore z translation (in final transform/pose in base frame)
-        self.camera_correction = self.camera_correction + transform[:3, 3]
-        self.publish_correction_marker(transform)
+        return transform
 
-
-    def publish_correction_marker(self, transform):
-        marker = Marker()
-
-        marker.header.frame_id = "panda_link0"
-        marker.header.stamp = rospy.Time.now()
-
-        # set shape, Arrow: 0; Cube: 1 ; Sphere: 2 ; Cylinder: 3
-        marker.type = 0
-        marker.id = 0
-
-        point_begin = Point()
-        point_begin.x = self.curr_pos[0]
-        point_begin.y = self.curr_pos[1]
-        point_begin.z = self.curr_pos[2]
-        point_end = Point()
-        point_end.x = (self.curr_pos[0] + transform[0, 3]) * 1.2
-        point_end.y = (self.curr_pos[1] + transform[1,3]) * 1.2
-        point_end.z = self.curr_pos[2]
-
-        marker.points = [point_begin, point_end]
-        # Set the scale of the marker
-        marker.scale.x = 0.005
-        marker.scale.y = 0.01
-        marker.scale.z = 0
-
-        # Set the color
-        marker.color.r = 0.0
-        marker.color.g = 1.0
-        marker.color.b = 0.0
-        marker.color.a = 1.0
-
-        self.marker_pub.publish(marker)
+    def get_transform(self, source_frame, target_frame):
+        while True:
+            try:
+                now = rospy.Time.now()
+                self._tf_listener.waitForTransform(source_frame, target_frame, now, rospy.Duration(4.0))
+                rp_tr, rp_rt = self._tf_listener.lookupTransform(source_frame, target_frame, now)
+                break
+            except Exception as e:
+                rospy.logwarn(e)
+        transform = np.dot(tf.transformations.translation_matrix(rp_tr), tf.transformations.quaternion_matrix(rp_rt))
+        return transform

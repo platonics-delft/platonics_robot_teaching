@@ -7,14 +7,14 @@ from panda_ros.pose_transform_functions import orientation_2_quaternion, pose_st
 class Transform():
     def __init__(self):
         super(Transform, self).__init__()
-        self._tf_listener = tf.TransformListener()
         self.final_transform = None
-    def transform_traj_ori(self, traj, ori, transform):
-        transformed_traj = np.empty_like(traj)
-        transformed_ori = np.empty_like(ori)
-        for i in range(traj.shape[1]):
-            transformed_traj[:,i], transformed_ori[:,i] = transform_pos_ori(traj[:, i], ori[:, i], transform)
-        return transformed_traj, transformed_ori
+    # def transform_traj_ori(self, traj, ori, transform):
+    #     # transform is a 4x4 matrix
+    #     transformed_traj = np.empty_like(traj)
+    #     transformed_ori = np.empty_like(ori)
+    #     for i in range(traj.shape[1]):
+    #         transformed_traj[:,i], transformed_ori[:,i] = transform_pos_ori(traj[:, i], ori[:, i], transform)
+    #     return transformed_traj, transformed_ori
 
     def compute_final_transform(self):
         # Home pose of panda_EE frame
@@ -37,14 +37,4 @@ class Transform():
         print("final transform", self.final_transform)
         return self.final_transform
     
-    def get_transform(self, source_frame, target_frame):
-        while True:
-            try:
-                now = rospy.Time.now()
-                self._tf_listener.waitForTransform(source_frame, target_frame, now, rospy.Duration(4.0))
-                rp_tr, rp_rt = self._tf_listener.lookupTransform(source_frame, target_frame, now)
-                break
-            except Exception as e:
-                rospy.logwarn(e)
-        transform = np.dot(tf.transformations.translation_matrix(rp_tr), tf.transformations.quaternion_matrix(rp_rt))
-        return transform
+
