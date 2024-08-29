@@ -7,7 +7,7 @@ from sensor_msgs.msg import Image
 import rospy
 from geometry_msgs.msg import PoseStamped
 from cv_bridge import CvBridgeError, CvBridge
-
+import tf
 def image_process(image, ds_factor, row_crop_top, row_crop_bottom, col_crop_left, col_crop_right):
     h, w = image.shape[:2]
 

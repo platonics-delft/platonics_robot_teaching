@@ -9,16 +9,16 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridgeError, CvBridge
 import tf
 from camera_feedback import Camera
-from std_msgs.msg import Float32
+from std_msgs.msg import Float32, Header
 import rospkg
 from geometry_msgs.msg import PoseStamped, Pose
 from panda_ros import Panda
 from feedback import Feedback
-from transfom import Transform 
 from panda_ros.pose_transform_functions import transform_pose, transform_between_poses
 from copy import deepcopy
 import pickle
 class LfD():
+    data = {}
     def __init__(self):
         rospy.init_node("learning_node")
         super(LfD, self).__init__()
@@ -57,17 +57,17 @@ class LfD():
         self.recorded_img = []
         self.recorded_img_feedback_flag = []
         self.recorded_spiral_flag = []
-        if self.gripper_width < self.grip_open_width * 0.9:
-            buttons.gripper_closed = True
+        if self.robot.gripper_width < self.grip_open_width * 0.9:
+            self.buttons.gripper_closed = True
         else:
-            buttons.gripper_closed = False
+            self.buttons.gripper_closed = False
 
         print("Recording started. Press Esc to stop.")
         while not self.buttons.end:
             while(self.buttons.pause):
                 self.rate.sleep()
             self.recorded_pose.append(self.robot.curr_pose) 
-            grip_value = self.grip_close_width if buttons.gripper_closed else self.grip_open_width
+            grip_value = self.grip_close_width if self.buttons.gripper_closed else self.grip_open_width
             self.activate_gripper(grip_value)
             self.recorded_gripper.append(grip_value)
 
@@ -83,8 +83,8 @@ class LfD():
 
             self.rate.sleep()
 
-        goal = self.curr_pose
-        goal.header = {"seq": 1, "stamp": rospy.Time.now(), "frame_id": "map"}
+        goal = self.robot.curr_pose
+        goal.header = Header(seq=1, stamp=rospy.Time.now(), frame_id="map")
         self.robot.goal_pub.publish(goal)
         self.robot.set_stiffness(3000, 3000, 3000, 40, 40, 40, 0)
         rospy.loginfo("Ending trajectory recording")
@@ -152,12 +152,12 @@ class LfD():
     def activate_gripper(self, grip_value):
         if grip_value < self.grip_open_width * 0.9:
             self.robot.grasp_gripper(grip_value)
-            self.gripper_opened = False
-            time.sleep(0.1)
+            # self.gripper_opened = False
+            time.sleep(1)
         else: 
             self.robot.move_gripper(grip_value)     
-            self.gripper_opened = True              
-            time.sleep(0.1)
+            # self.gripper_opened = True              
+            time.sleep(1)
 
     def spiral_search(self, goal_pose: PoseStamped, force_min_exit=1): 
         # force_min_exit in Newton. If the verical force is lower than this value, the spiral search is considered successful
@@ -187,15 +187,15 @@ class LfD():
 
 
 
-def save(self, file='last'):
-    ros_pack = rospkg.RosPack()
-    self._package_path = ros_pack.get_path('trajectory_data')
-    with open(self._package_path + '/trajectories/' + str(file) + '.pkl', 'wb') as f:
-        pickle.dump(self.data, f)
-    
-def load(self, file='last'):
-    ros_pack = rospkg.RosPack()
-    self._package_path = ros_pack.get_path('trajectory_data')
-    with open(self._package_path + '/trajectories/' + str(file) + '.pkl', 'rb') as f:
-        data = pickle.load(f)
-    self.data = data
+    def save(self, file='last'):
+        ros_pack = rospkg.RosPack()
+        self._package_path = ros_pack.get_path('trajectory_data')
+        with open(self._package_path + '/trajectories/' + str(file) + '.pkl', 'wb') as f:
+            pickle.dump(self.data, f)
+        
+    def load(self, file='last'):
+        ros_pack = rospkg.RosPack()
+        self._package_path = ros_pack.get_path('trajectory_data')
+        with open(self._package_path + '/trajectories/' + str(file) + '.pkl', 'rb') as f:
+            data = pickle.load(f)
+        self.data = data

@@ -22,7 +22,6 @@ class Feedback():
         self.listener.start()
 
     def _on_press(self, key):
-        rospy.loginfo(f"Event happened, user pressed {key}")
         # This function runs on the background and checks if a keyboard key was pressed
         if key == Key.esc:
             self.end = True
@@ -43,7 +42,7 @@ class Feedback():
             self.feedback[2] = -self.feedback_gain
         if key == KeyCode.from_char('f'):
             self.feedback[3] = 1
-        if key == KeyCode.from_char('k'):
+        if key == KeyCode.from_char('c'):
             if self.img_feedback_flag:
                 print("camera feedback disabled")
                 self.img_feedback_flag = False
@@ -52,7 +51,7 @@ class Feedback():
                 print("camera feedback enabled")
                 self.img_feedback_flag = True
                 self.img_feedback_correction = True
-        if key == KeyCode.from_char('z'):
+        if key == KeyCode.from_char('x'):
             if self.spiral_flag:
                 print("spiral disabled")
                 self.spiral_flag = False
@@ -63,14 +62,14 @@ class Feedback():
                 self.spiral_feedback_correction = True
 
         # Close/open gripper
-        if key == KeyCode.from_char('c'):
+        if key == KeyCode.from_char('g'):
             if self.gripper_closed:  
                 print("Gripper open")
                 self.gripper_closed = False
             else:
                 self.gripper_closed =True
                 print("Gripper closed")
-        if key == KeyCode.from_char('m'):    
+        if key == KeyCode.from_char('z'):    
             if self.stiff_rotation:
                 self.stiff_rotation = False
                 print("zero rotational stiffness")
@@ -121,9 +120,9 @@ class Feedback():
 
 def square_exp(recorded_pose, ind_curr, ind_j):
     dist = np.sqrt(
-        recorded_pose[ind_curr].pose.position.x - recorded_pose[ind_j].pose.position.x) ** 2 +
-        recorded_pose[ind_curr].pose.position.y - recorded_pose[ind_j].pose.position.y) ** 2 +
-        recorded_pose[ind_curr].pose.position.z - recorded_pose[ind_j].pose.position.z) ** 2
+        (recorded_pose[ind_curr].pose.position.x - recorded_pose[ind_j].pose.position.x) ** 2 +
+        (recorded_pose[ind_curr].pose.position.y - recorded_pose[ind_j].pose.position.y) ** 2 +
+        (recorded_pose[ind_curr].pose.position.z - recorded_pose[ind_j].pose.position.z) ** 2
     )
     sq_exp = np.exp(-dist ** 2 / self.length_scale ** 2)
     return sq_exp 
