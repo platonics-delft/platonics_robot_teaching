@@ -27,9 +27,9 @@ def image_process(image, ds_factor, row_crop_top, row_crop_bottom, col_crop_left
     resized_img_gray = cv2.cvtColor(resized_img_padded, cv2.COLOR_BGR2GRAY)
     return resized_img_gray
 
-class CameraFeedback():
+class Camera():
     def __init__(self) -> None:
-        super(CameraFeedback, self).__init__()
+        super(Camera, self).__init__()
         self.camera_correction=np.array([0.,0.,0.])
         self.row_crop_pct_top = 0.4
         self.row_crop_pct_bot = 1.0
@@ -60,24 +60,22 @@ class CameraFeedback():
             cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
 
             self.curr_image = cv_image
-
+            self.curr_image = image_process(self.curr_image, self.ds_factor,  self.row_crop_pct_top , self.row_crop_pct_bot, self.col_crop_pct_left, self.col_crop_pct_right)
         except CvBridgeError as e:
             print(e)
     def camera_info_callback(self, camera_info):
         self.cx_cy_array = np.array([camera_info.K[2], camera_info.K[5]])    # Principal point offsets of your camera
 
-    def sift_matching(self):
+    def sift_matching(self, recorded_img):
 
-        # self.resized_img_gray=image_process(self.ds_factor,  0, 1, 0, 1)
-        self.resized_img_gray=image_process(self.curr_image, self.ds_factor,  self.row_crop_pct_top , self.row_crop_pct_bot, self.col_crop_pct_left, self.col_crop_pct_right)
         idx = self.time_index - 1
 
         # initiate SIFT detector
         sift = cv2.SIFT_create()
 
         # find the keypoints and descriptors with SIFT
-        kp1, des1 = sift.detectAndCompute(self.recorded_img[idx], None)
-        kp2, des2 = sift.detectAndCompute(self.resized_img_gray, None)
+        kp1, des1 = sift.detectAndCompute(recorded_image, None)
+        kp2, des2 = sift.detectAndCompute(self.curr_image, None)
 
         FLANN_INDEX_KDTREE = 0
         index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
@@ -150,14 +148,14 @@ class CameraFeedback():
                     matchesMask=matchesMask,
                     flags=2,
                 )
-                padded_template = np.zeros_like(self.resized_img_gray)
+                padded_template = np.zeros_like(self.curr_image)
                 h, w = padded_template.shape
                 row_idx_start = int(h * 0)
                 row_idx_end = int(h * 1)
                 col_idx_start= int(w * 0)
                 col_idx_end = int(w * 1)
                 padded_template[row_idx_start:row_idx_end, col_idx_start:col_idx_end] = self.recorded_img[idx]
-                self._annoted_image = cv2.drawMatches(padded_template, kp1, self.resized_img_gray, kp2, good_feature, None, **draw_params)
+                self._annoted_image = cv2.drawMatches(padded_template, kp1, self.curr_image, kp2, good_feature, None, **draw_params)
                 recorded_image_msg = self.bridge.cv2_to_imgmsg(self._annoted_image)
                 self.current_template_pub.publish(recorded_image_msg)  
             except Exception as e:
