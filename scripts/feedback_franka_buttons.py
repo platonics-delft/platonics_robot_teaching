@@ -31,6 +31,7 @@ class FeedbackButtons(Feedback):
         for i in range(len(read_events)):
             if read_events[i] == 'up':
                 if event[read_events[i]] == True and not self.blocked:
+                    self.blocked = True
                     self.pause=not(self.pause)
                     if self.pause==True:
                         print("Recording paused")    
