@@ -1,21 +1,18 @@
 #!/usr/bin/env python3
-import cv2
 import rospy
 import actionlib
 import math
 import numpy as np
 import time
-from sensor_msgs.msg import Image
-from cv_bridge import CvBridgeError, CvBridge
 import tf
 from camera_feedback import Camera
-from std_msgs.msg import Float32, Header
+from std_msgs.msg import Header
 import rospkg
-from geometry_msgs.msg import PoseStamped, Pose
+from geometry_msgs.msg import PoseStamped
 from panda_ros import Panda
 from feedback_franka_buttons import FeedbackButtons as Feedback
 # from feedback_keyboard import FeedbackKeyboard as Feedback
-from panda_ros.pose_transform_functions import transform_pose, transform_between_poses
+from panda_ros.pose_transform_functions import transform_pose, transform_between_poses, interpolate_poses
 from copy import deepcopy
 import pickle
 
@@ -62,7 +59,10 @@ class LfD():
 
         self.localization_transform = np.eye(4)
 
-        rospy.sleep(1)
+        self.safe_distance_lin=0.005
+        self.safe_distance_ori=0.005
+
+	rospy.sleep(1)
 
     def execute_execute(self, goal: LfdExecuteGoal):
         self.buttons.desk._listening = True
@@ -100,11 +100,11 @@ class LfD():
             perturbation = math.sqrt((self.robot.curr_pos[0]-init_pos[0])**2 + (self.robot.curr_pos[1]-init_pos[1])**2 + (self.robot.curr_pos[2]-init_pos[2])**2)
                 # trigger for starting the recording
         self.robot.set_stiffness(0, 0, 0, 0, 0, 0, 0)
-        self.recorded_pose = []
-        self.recorded_gripper = []
-        self.recorded_img = []
-        self.recorded_img_feedback_flag = []
-        self.recorded_spiral_flag = []
+        self.recorded_pose = [self.robot.curr_pose]
+        self.recorded_gripper =  [self.grip_close_width if self.buttons.gripper_closed else self.grip_open_width]
+        self.recorded_img = [self.camera.curr_image]
+        self.recorded_img_feedback_flag = [0]
+        self.recorded_spiral_flag = [0]
         if self.robot.gripper_width < self.grip_open_width * 0.9:
             self.buttons.gripper_closed = True
             self.gripper_state = True
@@ -113,17 +113,19 @@ class LfD():
             self.gripper_state = False
 
         print("Recording started. Press Esc to stop.")
+
         while not self.buttons.end:
             while(self.buttons.pause):
                 self.rate.sleep()
-            self.recorded_pose.append(self.robot.curr_pose) 
+            poses=  interpolate_poses(self.recorded_pose[-1],self.robot.curr_pose, self.safe_distance_lin, self.safe_distance_ori)[1:]
+            
             grip_value = self.grip_close_width if self.buttons.gripper_closed else self.grip_open_width
             change_gripper_state = self.gripper_state != self.buttons.gripper_closed
             self.gripper_state = self.buttons.gripper_closed
             # print("Change gripper state: ", change_gripper_state)
             if change_gripper_state:
                 self.activate_gripper(grip_value)
-            self.recorded_gripper.append(grip_value)
+            
 
             if self.buttons.stiff_rotation:
                 self.robot.goal_pub.publish(self.robot.curr_pose)
@@ -131,10 +133,11 @@ class LfD():
             else:
                 self.robot.set_stiffness(0, 0, 0, 0, 0, 0, 0)
 
-            self.recorded_img.append(self.camera.curr_image)
-            self.recorded_img_feedback_flag.append(self.buttons.img_feedback_flag)
-            self.recorded_spiral_flag.append(self.buttons.spiral_flag)
-
+            self.recorded_pose.extend(poses)
+            self.recorded_gripper.extend([grip_value]*len(poses))
+            self.recorded_img.extend([self.camera.curr_image]*len(poses))
+            self.recorded_img_feedback_flag.extend([self.buttons.img_feedback_flag]*len(poses))
+            self.recorded_spiral_flag.extend([self.buttons.spiral_flag]*len(poses))
             self.rate.sleep()
 
         goal = self.robot.curr_pose
@@ -152,8 +155,6 @@ class LfD():
 
 
     def execute(self, retry_insertion_flag=0, execution_speed=1):
-        rospy.loginfo("Executing trajectory")
-
 
         self.robot.set_stiffness(3000, 3000, 3000, 30, 30, 30, 0)
         self.robot.set_K.update_configuration({"max_delta_lin": 0.05})

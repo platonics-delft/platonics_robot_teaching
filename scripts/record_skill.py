@@ -14,6 +14,7 @@ if __name__ == '__main__':
         lfd = LfD()
         lfd.kinesthetic_teaching()
         lfd.save(name_skill)
+        lfd.buttons.desk._listening = False
     except rospy.ROSInterruptException:
         pass
 
