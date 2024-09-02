@@ -22,6 +22,8 @@ import pickle
 
 from skills_manager.msg import LfdRecordAction, LfdRecordGoal, LfdRecordResult, LfdRecordFeedback
 from skills_manager.msg import LfdExecuteAction, LfdExecuteGoal, LfdExecuteResult, LfdExecuteFeedback
+from skills_manager.msg import LfdHomeAction, LfdHomeGoal, LfdHomeResult, LfdHomeFeedback
+
 
 class LfD():
     data = {}
@@ -38,6 +40,10 @@ class LfD():
             'lfdExecute', LfdExecuteAction, self.execute_execute, auto_start=False
         )
         self._execute_action_server.start()
+        self._home_action_server = actionlib.SimpleActionServer(
+            'lfdHome', LfdHomeAction, self.execute_home, auto_start=False
+        )
+        self._home_action_server.start()
         
         self._tf_broadcaster = tf.TransformBroadcaster()
 
@@ -74,6 +80,17 @@ class LfD():
         result = LfdRecordResult()
         result.success = True
         self._record_action_server.set_succeeded(result)
+
+    def execute_home(self, goal: LfdHomeGoal):
+        self.robot.home(
+            height=goal.height,
+            front_offset=goal.front,
+            side_offset=goal.side
+        )
+        self.robot.offset_compensator(10)
+        result = LfdHomeResult()
+        result.success = True
+        self._home_action_server.set_succeeded(result)
 
     def kinesthetic_teaching(self, trigger=0.005):
         init_pos = self.robot.curr_pos
