@@ -31,10 +31,10 @@ class Camera():
     def __init__(self) -> None:
         super(Camera, self).__init__()
         self.camera_correction=np.array([0.,0.,0.])
-        self.row_crop_pct_top = 0.4
-        self.row_crop_pct_bot = 1.0
-        self.col_crop_pct_left = 0.3
-        self.col_crop_pct_right = 0.7
+        self.row_crop_pct_top = 0 #0.4
+        self.row_crop_pct_bot = 1 #1.0
+        self.col_crop_pct_left = 0 #0.3
+        self.col_crop_pct_right = 1 #0.7
 
         self.ds_factor = 4 # Downsample factor
 
@@ -66,15 +66,13 @@ class Camera():
     def camera_info_callback(self, camera_info):
         self.cx_cy_array = np.array([camera_info.K[2], camera_info.K[5]])    # Principal point offsets of your camera
 
-    def sift_matching(self, recorded_img):
-
-        idx = self.time_index - 1
+    def sift_matching(self,target_img):
 
         # initiate SIFT detector
         sift = cv2.SIFT_create()
 
         # find the keypoints and descriptors with SIFT
-        kp1, des1 = sift.detectAndCompute(recorded_image, None)
+        kp1, des1 = sift.detectAndCompute(target_img, None)
         kp2, des2 = sift.detectAndCompute(self.curr_image, None)
 
         FLANN_INDEX_KDTREE = 0
@@ -103,14 +101,15 @@ class Camera():
 
         transform_correction = np.eye(4)
         transform_pixels = np.eye(2)
-        if len(good_feature) > self.num_good_matches_threshold:
-            self._src_pts = np.float32([kp1[m.queryIdx].pt for m in good_feature]).reshape(-1, 1, 2)
-            self._dst_pts = np.float32([kp2[m.trainIdx].pt for m in good_feature]).reshape(-1, 1, 2)
+        self._src_pts = np.float32([kp1[m.queryIdx].pt for m in good_feature]).reshape(-1, 1, 2)
+        self._dst_pts = np.float32([kp2[m.trainIdx].pt for m in good_feature]).reshape(-1, 1, 2)
 
-            distances_pixel=np.linalg.norm(self._src_pts - self._dst_pts, axis=-1)
+        distances_pixel=np.linalg.norm(self._src_pts - self._dst_pts, axis=-1)
+        matching_condition = len(good_feature) > self.num_good_matches_threshold and np.sum(distances_pixel < self.pixel_diance_threshold) > self.num_good_matches_threshold
+        if matching_condition:
             self._src_pts= self._src_pts[distances_pixel < self.pixel_diance_threshold]
             self._dst_pts= self._dst_pts[distances_pixel < self.pixel_diance_threshold]
-            good_feature = [good_feature[i] for i in range(len(good_feature)) if distances_pixel[i] < 10]
+            good_feature = [good_feature[i] for i in range(len(good_feature)) if distances_pixel[i] < self.pixel_diance_threshold]
 
             transform_pixels, inliers = cv2.estimateAffinePartial2D(self._src_pts, self._dst_pts)
             # print("transform", transform_pixels)
@@ -138,7 +137,7 @@ class Camera():
         for k in kp2:
             k.pt = (k.pt[0] + cx_cy_array_ds[0], k.pt[1] + cx_cy_array_ds[1])
 
-        if len(good_feature) > self.num_good_matches_threshold:
+        if matching_condition:
             try:
                 M, mask = cv2.findHomography(self._src_pts, self._dst_pts, cv2.RANSAC, 5.0)
                 matchesMask = mask.ravel().tolist()
@@ -154,7 +153,7 @@ class Camera():
                 row_idx_end = int(h * 1)
                 col_idx_start= int(w * 0)
                 col_idx_end = int(w * 1)
-                padded_template[row_idx_start:row_idx_end, col_idx_start:col_idx_end] = self.recorded_img[idx]
+                padded_template[row_idx_start:row_idx_end, col_idx_start:col_idx_end] = target_img
                 self._annoted_image = cv2.drawMatches(padded_template, kp1, self.curr_image, kp2, good_feature, None, **draw_params)
                 recorded_image_msg = self.bridge.cv2_to_imgmsg(self._annoted_image)
                 self.current_template_pub.publish(recorded_image_msg)  
