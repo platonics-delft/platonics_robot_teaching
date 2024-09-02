@@ -1,7 +1,7 @@
-#%%
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import cv2
 import rospy
+import actionlib
 import math
 import numpy as np
 import time
@@ -18,6 +18,11 @@ from feedback_franka_buttons import FeedbackButtons as Feedback
 from panda_ros.pose_transform_functions import transform_pose, transform_between_poses
 from copy import deepcopy
 import pickle
+
+
+from skills_manager.msg import LfdRecordAction, LfdRecordGoal, LfdRecordResult, LfdRecordFeedback
+from skills_manager.msg import LfdExecuteAction, LfdExecuteGoal, LfdExecuteResult, LfdExecuteFeedback
+
 class LfD():
     data = {}
     def __init__(self):
@@ -25,6 +30,14 @@ class LfD():
         super(LfD, self).__init__()
         self.control_rate = 30
         self.rate=rospy.Rate(self.control_rate)
+        self._record_action_server = actionlib.SimpleActionServer(
+            'lfdRecord', LfdRecordAction, self.execute_record, auto_start=False
+        )
+        self._record_action_server.start()
+        self._execute_action_server = actionlib.SimpleActionServer(
+            'lfdExecute', LfdExecuteAction, self.execute_execute, auto_start=False
+        )
+        self._execute_action_server.start()
         
         self._tf_broadcaster = tf.TransformBroadcaster()
 
@@ -44,6 +57,23 @@ class LfD():
         self.localization_transform = np.eye(4)
 
         rospy.sleep(1)
+
+    def execute_execute(self, goal: LfdExecuteGoal):
+        self.buttons.desk._listening = True
+        self.load(goal.skill_name)
+        self.execute()
+        self.buttons.desk._listening = False
+        result = LfdExecuteResult()
+        result.success = True
+        self._execute_action_server.set_succeeded(result)
+
+
+    def execute_record(self, goal: LfdRecordGoal):
+        self.kinesthetic_teaching()
+        self.save(goal.skill_name)
+        result = LfdRecordResult()
+        result.success = True
+        self._record_action_server.set_succeeded(result)
 
     def kinesthetic_teaching(self, trigger=0.005):
         init_pos = self.robot.curr_pos
@@ -105,6 +135,8 @@ class LfD():
 
 
     def execute(self, retry_insertion_flag=0, execution_speed=1):
+        rospy.loginfo("Executing trajectory")
+
 
         self.robot.set_stiffness(3000, 3000, 3000, 30, 30, 30, 0)
         self.robot.set_K.update_configuration({"max_delta_lin": 0.05})
@@ -231,3 +263,14 @@ class LfD():
         with open(self._package_path + '/trajectories/' + str(file) + '.pkl', 'rb') as f:
             data = pickle.load(f)
         self.data = data
+
+    def run(self):
+        while not rospy.is_shutdown():
+            self.rate.sleep()
+
+if __name__ == "__main__":
+    node = LfD()
+    try:
+        node.run()
+    except rospy.ROSInterruptException:
+        pass
