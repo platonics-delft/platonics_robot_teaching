@@ -13,6 +13,7 @@ class FeedbackButtons(Feedback):
         self.img_feedback_flag = False
         self.gripper_closed = False
         self.blocked = False
+        self.pressed = False
 
         # Connect to the Desk
         ros_pack = rospkg.RosPack()
@@ -26,12 +27,12 @@ class FeedbackButtons(Feedback):
         self.desk.listen(self.on_press)
 
     def on_press(self, event: typing.Dict) -> None:
-        # print(event)
         read_events=list(event.keys())
         for i in range(len(read_events)):
             if read_events[i] == 'up':
                 if event[read_events[i]] == True and not self.blocked:
                     self.blocked = True
+                    self.pressed=True
                     self.pause=not(self.pause)
                     if self.pause==True:
                         print("Recording paused")    
@@ -42,6 +43,7 @@ class FeedbackButtons(Feedback):
             if read_events[i] == 'down':
                 if event[read_events[i]] == True and not self.blocked:
                     self.blocked = True
+                    self.pressed=True
                     if self.spiral_flag:
                         print("spiral disabled")
                         self.spiral_flag = False
@@ -62,6 +64,7 @@ class FeedbackButtons(Feedback):
             if read_events[i] == 'circle':
                 if event[read_events[i]] == True and not self.blocked:
                     self.blocked = True
+                    self.pressed=True
                     if self.gripper_closed:  
                         print("Gripper open")
                         self.gripper_closed = False
@@ -73,6 +76,7 @@ class FeedbackButtons(Feedback):
             if read_events[i] == 'cross':
                 if event[read_events[i]] == True and not self.blocked:
                     self.blocked = True
+                    self.pressed=True
                     self.end = True
                     print("Esc pressed. Stopping...")
                     # Stop listening
@@ -82,6 +86,7 @@ class FeedbackButtons(Feedback):
             if read_events[i] == 'check':
                 if event[read_events[i]] == True and not self.blocked:
                     self.blocked = True
+                    self.pressed=True
                     if self.img_feedback_flag:
                         print("camera feedback disabled")
                         self.img_feedback_flag = False

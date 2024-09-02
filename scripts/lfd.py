@@ -91,6 +91,10 @@ class LfD():
             self.recorded_img.extend([self.camera.curr_image]*len(poses))
             self.recorded_img_feedback_flag.extend([self.buttons.img_feedback_flag]*len(poses))
             self.recorded_spiral_flag.extend([self.buttons.spiral_flag]*len(poses))
+
+            if self.buttons.pressed:
+                self.buttons.pressed=False
+                self.robot.vibrate(0.2)
             self.rate.sleep()
 
         goal = self.robot.curr_pose
