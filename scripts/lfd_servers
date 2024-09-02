@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+import rospy
+import actionlib
+from lfd import LfD
+
+from skills_manager.msg import LfdRecordAction, LfdRecordGoal, LfdRecordResult, LfdRecordFeedback
+from skills_manager.msg import LfdExecuteAction, LfdExecuteGoal, LfdExecuteResult, LfdExecuteFeedback
+from skills_manager.msg import LfdHomeAction, LfdHomeGoal, LfdHomeResult, LfdHomeFeedback
+
+
+class LfdServer():
+    def __init__(self):
+        rospy.init_node("learning_node")
+        self._lfd = LfD()
+        self._record_action_server = actionlib.SimpleActionServer(
+            'lfdRecord', LfdRecordAction, self.execute_record, auto_start=False
+        )
+        self._record_action_server.start()
+        self._execute_action_server = actionlib.SimpleActionServer(
+            'lfdExecute', LfdExecuteAction, self.execute_execute, auto_start=False
+        )
+        self._execute_action_server.start()
+        self._home_action_server = actionlib.SimpleActionServer(
+            'lfdHome', LfdHomeAction, self.execute_home, auto_start=False
+        )
+        self._home_action_server.start()
+
+    def execute_execute(self, goal: LfdExecuteGoal):
+        self._lfd.buttons.desk._listening = True
+        self._lfd.load(goal.skill_name)
+        self._lfd.execute()
+        self._lfd.buttons.desk._listening = False
+        result = LfdExecuteResult()
+        result.success = True
+        self._execute_action_server.set_succeeded(result)
+
+
+    def execute_record(self, goal: LfdRecordGoal):
+        self._lfd.kinesthetic_teaching()
+        self._lfd.save(goal.skill_name)
+        result = LfdRecordResult()
+        result.success = True
+        self._record_action_server.set_succeeded(result)
+
+    def execute_home(self, goal: LfdHomeGoal):
+        self._lfd.robot.home(
+            height=goal.height,
+            front_offset=goal.front,
+            side_offset=goal.side
+        )
+        self._lfd.robot.offset_compensator(10)
+        result = LfdHomeResult()
+        result.success = True
+        self._home_action_server.set_succeeded(result)
+
+    def run(self):
+        while not rospy.is_shutdown():
+            self._lfd.rate.sleep()
+
+if __name__ == "__main__":
+    node = LfD()
+    try:
+        node.run()
+    except rospy.ROSInterruptException:
+        pass
+

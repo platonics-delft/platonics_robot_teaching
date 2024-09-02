@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
 import rospy
-import actionlib
 import math
 import numpy as np
 import time
@@ -17,30 +15,13 @@ from copy import deepcopy
 import pickle
 
 
-from skills_manager.msg import LfdRecordAction, LfdRecordGoal, LfdRecordResult, LfdRecordFeedback
-from skills_manager.msg import LfdExecuteAction, LfdExecuteGoal, LfdExecuteResult, LfdExecuteFeedback
-from skills_manager.msg import LfdHomeAction, LfdHomeGoal, LfdHomeResult, LfdHomeFeedback
-
 
 class LfD():
     data = {}
     def __init__(self):
-        rospy.init_node("learning_node")
         super(LfD, self).__init__()
         self.control_rate = 30
         self.rate=rospy.Rate(self.control_rate)
-        self._record_action_server = actionlib.SimpleActionServer(
-            'lfdRecord', LfdRecordAction, self.execute_record, auto_start=False
-        )
-        self._record_action_server.start()
-        self._execute_action_server = actionlib.SimpleActionServer(
-            'lfdExecute', LfdExecuteAction, self.execute_execute, auto_start=False
-        )
-        self._execute_action_server.start()
-        self._home_action_server = actionlib.SimpleActionServer(
-            'lfdHome', LfdHomeAction, self.execute_home, auto_start=False
-        )
-        self._home_action_server.start()
         
         self._tf_broadcaster = tf.TransformBroadcaster()
 
@@ -62,35 +43,7 @@ class LfD():
         self.safe_distance_lin=0.005
         self.safe_distance_ori=0.005
 
-	rospy.sleep(1)
-
-    def execute_execute(self, goal: LfdExecuteGoal):
-        self.buttons.desk._listening = True
-        self.load(goal.skill_name)
-        self.execute()
-        self.buttons.desk._listening = False
-        result = LfdExecuteResult()
-        result.success = True
-        self._execute_action_server.set_succeeded(result)
-
-
-    def execute_record(self, goal: LfdRecordGoal):
-        self.kinesthetic_teaching()
-        self.save(goal.skill_name)
-        result = LfdRecordResult()
-        result.success = True
-        self._record_action_server.set_succeeded(result)
-
-    def execute_home(self, goal: LfdHomeGoal):
-        self.robot.home(
-            height=goal.height,
-            front_offset=goal.front,
-            side_offset=goal.side
-        )
-        self.robot.offset_compensator(10)
-        result = LfdHomeResult()
-        result.success = True
-        self._home_action_server.set_succeeded(result)
+        rospy.sleep(1)
 
     def kinesthetic_teaching(self, trigger=0.005):
         init_pos = self.robot.curr_pos
@@ -282,13 +235,3 @@ class LfD():
             data = pickle.load(f)
         self.data = data
 
-    def run(self):
-        while not rospy.is_shutdown():
-            self.rate.sleep()
-
-if __name__ == "__main__":
-    node = LfD()
-    try:
-        node.run()
-    except rospy.ROSInterruptException:
-        pass
