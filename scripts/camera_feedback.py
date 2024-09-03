@@ -8,6 +8,8 @@ import rospy
 from geometry_msgs.msg import PoseStamped
 from cv_bridge import CvBridgeError, CvBridge
 import tf
+from dynamic_reconfigure.msg import Config
+from dynamic_reconfigure.client import Client
 def image_process(image, ds_factor, row_crop_top, row_crop_bottom, col_crop_left, col_crop_right):
     h, w = image.shape[:2]
 
@@ -45,7 +47,10 @@ class Camera():
         self.pixel_diance_threshold = 20
         self.lowe_ratio = 0.7
         self.correction_increment = 0.0005
+        self.starting = False
+        self.old_exposure= 0
         self.camera_param_sub=rospy.Subscriber("/camera/color/camera_info", CameraInfo, self.camera_info_callback)
+        self.client = Client("/camera/stereo_module", timeout=30)
 
         self.current_template_pub = rospy.Publisher('/SIFT_corrections', Image, queue_size=0)
 
@@ -65,6 +70,14 @@ class Camera():
             print(e)
     def camera_info_callback(self, camera_info):
         self.cx_cy_array = np.array([camera_info.K[2], camera_info.K[5]])    # Principal point offsets of your camera
+        self.time=camera_info.header.stamp.secs + camera_info.header.stamp.nsecs/1e9
+                # Get the current configuration
+        current_config = self.client.get_configuration()
+
+        # Print the current exposure value
+        self.current_exposure = current_config.get('exposure')
+        self.starting = self.current_exposure != self.old_exposure
+        self.old_exposure = self.current_exposure
 
     def sift_matching(self,target_img):
 
