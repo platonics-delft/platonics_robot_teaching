@@ -8,7 +8,7 @@ from skills_manager.msg import LfdExecuteAction, LfdExecuteGoal, LfdExecuteResul
 from skills_manager.msg import LfdHomeAction, LfdHomeGoal, LfdHomeResult, LfdHomeFeedback
 
 
-class LfdServer():
+class LfDServer():
     def __init__(self):
         rospy.init_node("learning_node")
         self._lfd = LfD()
@@ -58,7 +58,7 @@ class LfdServer():
             self._lfd.rate.sleep()
 
 if __name__ == "__main__":
-    node = LfD()
+    node = LfDServer()
     try:
         node.run()
     except rospy.ROSInterruptException:
