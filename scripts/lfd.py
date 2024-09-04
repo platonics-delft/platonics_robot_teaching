@@ -43,6 +43,8 @@ class LfD():
         self.safe_distance_lin=0.005
         self.safe_distance_ori=0.005
 
+        self.acceptable_camera_delay_steps = 2
+
         rospy.sleep(1)
 
     def kinesthetic_teaching(self, trigger=0.005):
@@ -91,6 +93,10 @@ class LfD():
             self.recorded_img.extend([self.camera.curr_image]*len(poses))
             self.recorded_img_feedback_flag.extend([self.buttons.img_feedback_flag]*len(poses))
             self.recorded_spiral_flag.extend([self.buttons.spiral_flag]*len(poses))
+
+            if self.buttons.pressed:
+                self.buttons.pressed=False
+                self.robot.vibrate(0.2)
             self.rate.sleep()
 
         goal = self.robot.curr_pose
@@ -134,8 +140,11 @@ class LfD():
 
             self.data= self.buttons.human_feedback(self.data, self.time_index)
 
+            current_time=rospy.Time.now().to_sec()
+            camera_delay = current_time-self.camera.time
+
             ### Perform camera corrections
-            if self.data['recorded_img_feedback_flag'][self.time_index]:
+            if self.data['recorded_img_feedback_flag'][self.time_index] and not self.camera.starting and (camera_delay * self.control_rate) < self.self.acceptable_camera_delay_steps:
                 self.servoing_transform=self.camera.sift_matching(target_img=self.data['recorded_img'][self.time_index])
                 total_transform = self.servoing_transform @ total_transform
             

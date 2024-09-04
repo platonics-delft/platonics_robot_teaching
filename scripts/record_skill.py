@@ -3,8 +3,6 @@
 Recording trajectories and storing them into a databaseself.
 """
 from lfd import LfD
-import sys
-import os
 import rospy
 
 if __name__ == '__main__':
