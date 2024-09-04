@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+import rospy
+from panda_ros import Panda
+
+import actionlib
+
+from skills_manager.msg import LfdHomeAction, LfdHomeGoal, LfdHomeResult, LfdHomeFeedback
+
+class LfdHomeActionServer():
+    _result = LfdHomeResult()
+    _feedback = LfdHomeFeedback()
+
+    def __init__(self):
+        rospy.init_node("homing_node")
+        self._rate = rospy.Rate(10)
+        self._action_server = actionlib.SimpleActionServer(
+            'lfdHome', LfdHomeAction, self.execute, auto_start=False
+        )
+        self._action_server.start()
+        self._panda = Panda()
+
+    def execute(self, goal: LfdHomeGoal):
+        self._panda.home(
+            height=goal.height,
+            front_offset=goal.front,
+            side_offset=goal.side
+        )
+        self._panda.offset_compensator(10)
+        self._result.success = True
+        self._action_server.set_succeeded(self._result)
+
+    def run(self):
+        while not rospy.is_shutdown():
+            self._rate.sleep()
+
+if __name__ == "__main__":
+    node = LfdHomeActionServer()
+    try:
+        node.run()
+    except rospy.ROSInterruptException:
+        pass

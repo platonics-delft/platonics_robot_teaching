@@ -1,0 +1,5 @@
+string skill_name
+---
+bool success
+---
+int32 waypoint

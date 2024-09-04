@@ -1,0 +1,7 @@
+float32 height
+float32 side
+float32 front
+---
+bool success
+---
+int32 waypoint

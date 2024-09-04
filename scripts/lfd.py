@@ -1,5 +1,3 @@
-#%%
-#!/usr/bin/env python
 import rospy
 import math
 import numpy as np
@@ -15,10 +13,12 @@ from feedback_franka_buttons import FeedbackButtons as Feedback
 from panda_ros.pose_transform_functions import transform_pose, transform_between_poses, interpolate_poses
 from copy import deepcopy
 import pickle
+
+
+
 class LfD():
     data = {}
     def __init__(self):
-        rospy.init_node("learning_node")
         super(LfD, self).__init__()
         self.control_rate = 30
         self.rate=rospy.Rate(self.control_rate)
@@ -243,3 +243,4 @@ class LfD():
         with open(self._package_path + '/trajectories/' + str(file) + '.pkl', 'rb') as f:
             data = pickle.load(f)
         self.data = data
+
