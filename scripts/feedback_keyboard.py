@@ -7,6 +7,7 @@ class FeedbackKeyboard(Feedback):
     def __init__(self):
         super(FeedbackKeyboard, self).__init__()
         self.pressed = False
+        self.feedback_gain = 0.002
 
     def start_listening(self):
         self.listener = Listener(on_press=self.on_press)
