@@ -72,10 +72,7 @@ class FeedbackButtons(Feedback):
                     self.blocked = True
                     self.pressed=True
                     if self.speed_up:
-                        print("Not speeding up execution")
-                        self.speed_up = False
-                    else:
-                        print("Speeding up execution")
+                        print("Speed up")
                         self.speed_up = True
                 elif event[read_events[i]] == False:
                     self.blocked = False

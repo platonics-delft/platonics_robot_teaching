@@ -7,6 +7,7 @@ class FeedbackKeyboard(Feedback):
     def __init__(self):
         super(FeedbackKeyboard, self).__init__()
         self.pressed = False
+        self.feedback_gain = 0.002
 
     def start_listening(self):
         self.listener = Listener(on_press=self.on_press)
@@ -35,7 +36,7 @@ class FeedbackKeyboard(Feedback):
         if key == KeyCode.from_char('j'):
             self.feedback[2] = -self.feedback_gain
         if key == KeyCode.from_char('f'):
-            self.feedback[3] = 1
+            self.speed_up = True
         if key == KeyCode.from_char('c'):
             if self.img_feedback_flag:
                 print("camera feedback disabled")
