@@ -1,0 +1,6 @@
+string[] skill_names
+bool localize_box
+---
+bool success
+---
+int32 waypoint
