@@ -1,10 +1,13 @@
 import numpy as np
-from utils import square_exp
 import rospy
 from geometry_msgs.msg import Vector3
-class FeedbackSpacenav():
+from feedback import Feedback
+from utils import square_exp
+
+class FeedbackSpacenav(Feedback):
     
     def __init__(self):
+        super().__init__()
         self.feedback=np.zeros(3)
         self.feedback_gain=0.002
         self.length_scale = 0.005
@@ -17,16 +20,17 @@ class FeedbackSpacenav():
         self.feedback[0] = data.x*self.feedback_gain
         self.feedback[1] = data.y*self.feedback_gain
         self.feedback[2] = data.z*self.feedback_gain
+
     def human_feedback(self, data: dict, time_index: int):
         if np.linalg.norm(self.feedback)>self.feedback_treshold:
             length = len(data['recorded_pose'])
             start = max(0, time_index-self.correction_window)
             end = min(length, time_index+self.correction_window)
             for j in range(start, end):
-                square_exp=square_exp(data['recorded_pose'][time_index],data['recorded_pose'][j], self.length_scale)
-                delta_x = self.feedback[0]*square_exp
-                delta_y = self.feedback[1]*square_exp
-                delta_z = self.feedback[2]*square_exp
+                se=square_exp(data['recorded_pose'][time_index],data['recorded_pose'][j], self.length_scale)
+                delta_x = self.feedback[0]*se
+                delta_y = self.feedback[1]*se
+                delta_z = self.feedback[2]*se
 
                 data['recorded_pose'][j].pose.position.x += delta_x
                 data['recorded_pose'][j].pose.position.y += delta_y

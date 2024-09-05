@@ -11,6 +11,7 @@ import rospkg
 from geometry_msgs.msg import PoseStamped
 from panda_ros import Panda
 from feedback_franka_buttons import FeedbackButtons as Feedback
+from feedback_spacenav import FeedbackSpacenav
 # from feedback_keyboard import FeedbackKeyboard as Feedback
 from panda_ros.pose_transform_functions import transform_pose, transform_between_poses, interpolate_poses
 from copy import deepcopy
@@ -30,6 +31,7 @@ class LfD():
         self.camera = Camera()
         self.robot= Panda()
         self.buttons = Feedback()
+        self.space_nav_feedback = FeedbackSpacenav()
 
         self.buttons.end = False
         self.grip_open_width = 0.02
@@ -150,6 +152,7 @@ class LfD():
         while not(self.buttons.end):
 
             self.data= self.buttons.human_feedback(self.data, self.time_index)
+            #self.data = self.space_nav_feedback.human_feedback(self.data, self.time_index)
 
             current_time=rospy.Time.now().to_sec()
             camera_delay = current_time-self.camera.time
@@ -183,6 +186,7 @@ class LfD():
                     # print("Safety violation detected. Making the robot compliant")
                     self.robot.set_stiffness(self.robot.K_pos_safe, self.robot.K_pos_safe, self.robot.K_pos_safe, self.robot.K_ori_safe, self.robot.K_ori_safe, self.robot.K_ori_safe, 0)
             ### Publish the goal pose
+            self.time_index = min(self.time_index, len(self.data['recorded_pose'])-1)
             goal_pose = self.data['recorded_pose'][self.time_index]
             goal_pose.header = {"seq": 1, "stamp": rospy.Time.now(), "frame_id": "map"}
 
