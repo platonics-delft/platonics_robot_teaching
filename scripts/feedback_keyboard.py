@@ -35,7 +35,7 @@ class FeedbackKeyboard(Feedback):
         if key == KeyCode.from_char('j'):
             self.feedback[2] = -self.feedback_gain
         if key == KeyCode.from_char('f'):
-            self.feedback[3] = 1
+            self.speed_up = True
         if key == KeyCode.from_char('c'):
             if self.img_feedback_flag:
                 print("camera feedback disabled")
