@@ -1,11 +1,10 @@
-import rospy
 import numpy as np
+from utils import square_exp
 class Feedback():
     def __init__(self):
-        self.feedback=np.zeros(4)
-        self.feedback_gain=0.002
+        self.feedback_treshold = 0.001
         self.length_scale = 0.005
-        self.correction_window = 300
+        self.correction_window = 200
         self.reset_variables()
 
 
@@ -22,6 +21,7 @@ class Feedback():
         self.pressed = False
         self.speed_up = False
         self.faster_counter=0
+        self.feedback=np.zeros(3)
 
 
     def start_listening(self):
@@ -32,18 +32,9 @@ class Feedback():
 
 
     def human_feedback(self, data: dict, time_index: int):
-        if np.sum(self.feedback[:3])!=0:
-            for j in range(len(data['recorded_pose'])):
-                x = self.feedback[0]*square_exp(data['recorded_pose'], time_index, j, self.length_scale)
-                y = self.feedback[1]*square_exp(data['recorded_pose'], time_index, j, self.length_scale)
-                z = self.feedback[2]*square_exp(data['recorded_pose'], time_index, j, self.length_scale)
 
-                data['recorded_pose'][j].pose.position.x += x
-                data['recorded_pose'][j].pose.position.y += y
-                data['recorded_pose'][j].pose.position.z += z
-                
         if self.speed_up:
-            self.faster_counter = 10
+            self.faster_counter += 10
             
         if self.faster_counter > 0 and time_index != len(data['recorded_pose'])-1:
             self.faster_counter -= 1
@@ -58,19 +49,27 @@ class Feedback():
             data['recorded_img_feedback_flag'][time_index:] = self.img_feedback_flag
 
         if self.spiral_feedback_correction:
-            data['recorded_spiral_flag'][time_index:] = self.spiral_flag            
-        feedback = np.zeros(4)
+            data['recorded_spiral_flag'][time_index:] = self.spiral_flag
+
+        if np.linalg.norm(self.feedback) > self.feedback_treshold:
+            length = len(data['recorded_pose'])
+            start = max(0, time_index-self.correction_window)
+            end = min(length, time_index+self.correction_window)
+            for j in range(start, end):
+                square_exp=square_exp(data['recorded_pose'][time_index],data['recorded_pose'][j], self.length_scale)
+                delta_x = self.feedback[0]* square_exp
+                delta_y = self.feedback[1]* square_exp
+                delta_z = self.feedback[2]* square_exp
+
+                data['recorded_pose'][j].pose.position.x += delta_x
+                data['recorded_pose'][j].pose.position.y += delta_y
+                data['recorded_pose'][j].pose.position.z += delta_z
+            return data
+        
+        self.feedback=np.zeros(3)
+        self.speed_up = False                
         self.img_feedback_correction = False
         self.spiral_feedback_correction = False
 
-        return data
-
-def square_exp(recorded_pose, ind_curr, ind_j, length_scale):
-    dist = np.sqrt(
-        (recorded_pose[ind_curr].pose.position.x - recorded_pose[ind_j].pose.position.x) ** 2 +
-        (recorded_pose[ind_curr].pose.position.y - recorded_pose[ind_j].pose.position.y) ** 2 +
-        (recorded_pose[ind_curr].pose.position.z - recorded_pose[ind_j].pose.position.z) ** 2
-    )
-    sq_exp = np.exp(-dist ** 2 / length_scale ** 2)
-    return sq_exp 
+        return data 
     
