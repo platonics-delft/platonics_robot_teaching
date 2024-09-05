@@ -6,8 +6,14 @@ from feedback import Feedback
 class FeedbackKeyboard(Feedback):
     def __init__(self):
         super(FeedbackKeyboard, self).__init__()
+        self.pressed = False
+
+    def start_listening(self):
         self.listener = Listener(on_press=self.on_press)
         self.listener.start()
+
+    def stop_listening(self):
+        self.listener.stop()
 
     def on_press(self, key):
         # This function runs on the background and checks if a keyboard key was pressed

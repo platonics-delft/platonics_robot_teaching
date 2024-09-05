@@ -14,6 +14,11 @@ find_package(catkin REQUIRED COMPONENTS
 
 catkin_python_setup()
 
+add_service_files(
+  FILES
+  ListTrajectories.srv
+)
+
 add_action_files(
   DIRECTORY action
   FILES

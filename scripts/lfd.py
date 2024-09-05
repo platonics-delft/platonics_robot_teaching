@@ -1,4 +1,6 @@
 import rospy
+from typing import List
+import os
 import math
 import numpy as np
 import time
@@ -41,22 +43,25 @@ class LfD():
         self.localization_transform = np.eye(4)
 
         self.safe_distance_lin=0.005
-        self.safe_distance_ori=0.005
+        self.safe_distance_ori=0.020
 
         self.acceptable_camera_delay_steps = 2
 
         rospy.sleep(1)
 
     def kinesthetic_teaching(self, trigger=0.005):
+        self.buttons.start_listening()
         init_pos = self.robot.curr_pos
         perturbation = 0 
         print("Move robot to start recording.")
+        for _ in range(3):
+            self.robot.vibrate(0.2)
+            rospy.sleep(0.4)
         while perturbation < trigger:
             perturbation = math.sqrt((self.robot.curr_pos[0]-init_pos[0])**2 + (self.robot.curr_pos[1]-init_pos[1])**2 + (self.robot.curr_pos[2]-init_pos[2])**2)
                 # trigger for starting the recording
         self.robot.set_stiffness(0, 0, 0, 0, 0, 0, 0)
         self.recorded_pose = [self.robot.curr_pose]
-        self.recorded_gripper =  [self.grip_close_width if self.buttons.gripper_closed else self.grip_open_width]
         self.recorded_img = [self.camera.curr_image]
         self.recorded_img_feedback_flag = [0]
         self.recorded_spiral_flag = [0]
@@ -66,9 +71,11 @@ class LfD():
         else:
             self.buttons.gripper_closed = False
             self.gripper_state = False
+        self.recorded_gripper =  [self.grip_close_width if self.buttons.gripper_closed else self.grip_open_width]
 
         print("Recording started. Press Esc to stop.")
 
+        self.buttons.end = False
         while not self.buttons.end:
             while(self.buttons.pause):
                 self.rate.sleep()
@@ -98,6 +105,7 @@ class LfD():
                 self.buttons.pressed=False
                 self.robot.vibrate(0.2)
             self.rate.sleep()
+        self.buttons.stop_listening()
 
         goal = self.robot.curr_pose
         goal.header = Header(seq=1, stamp=rospy.Time.now(), frame_id="map")
@@ -114,16 +122,18 @@ class LfD():
 
 
     def execute(self, retry_insertion_flag=0, execution_speed=1):
+        self.buttons.start_listening()
 
-        self.robot.set_stiffness(3000, 3000, 3000, 30, 30, 30, 0)
-        self.robot.set_K.update_configuration({"max_delta_lin": 0.05})
-        self.robot.set_K.update_configuration({"max_delta_ori": 0.15}) 
+        rospy.loginfo("Executing trajectory.")
         self.rate=rospy.Rate(self.control_rate * execution_speed)
 
         total_transform = self.localization_transform
         self.servoing_transform = np.eye(4)
         self.spiral_transform = np.eye(4)
-        self.robot.go_to_pose(transform_pose(self.data['recorded_pose'][0],total_transform)) 
+        self.robot.go_to_pose_ik(transform_pose(self.data['recorded_pose'][0],total_transform)) 
+        self.robot.set_stiffness(3000, 3000, 3000, 30, 30, 30, 0)
+        self.robot.set_K.update_configuration({"max_delta_lin": 0.05})
+        self.robot.set_K.update_configuration({"max_delta_ori": 0.30}) 
 
         self.time_index=0
 
@@ -136,6 +146,7 @@ class LfD():
             self.gripper_state = False
 
         self.robot.change_in_safety_check = False
+        self.buttons.end = False
         while not(self.buttons.end):
 
             self.data= self.buttons.human_feedback(self.data, self.time_index)
@@ -144,21 +155,21 @@ class LfD():
             camera_delay = current_time-self.camera.time
 
             ### Perform camera corrections
-            if self.data['recorded_img_feedback_flag'][self.time_index] and not self.camera.starting and (camera_delay * self.control_rate) < self.self.acceptable_camera_delay_steps:
+            if self.data['recorded_img_feedback_flag'][self.time_index] and not self.camera.starting and (camera_delay * self.control_rate) < self.acceptable_camera_delay_steps:
                 self.servoing_transform=self.camera.sift_matching(target_img=self.data['recorded_img'][self.time_index])
                 total_transform = self.servoing_transform @ total_transform
             
             ### Perform spiral search
             if self.data['recorded_spiral_flag'][self.time_index]:
                 if self.robot.force.z > self.insertion_force_threshold:
-                    self.spiral_transform = self.spiral_search(goal_pose)
+                    self.spiral_transform = self.spiral_search(self.robot.goal_pose) #goal_pose)
                     total_transform = self.spiral_transform @ total_transform
 
             ### Retry check
             force = np.linalg.norm([self.robot.force.x, self.robot.force.y, self.robot.force.z])
             if retry_insertion_flag and force > self.insertion_force_threshold:
                 if self.retry_counter >= self.retry_limit:
-                    self.move_gripper(self.grip_open_width)
+                    self.robot.move_gripper(self.grip_open_width)
                     break
                 self.robot.go_to_pose(transform_pose(self.data['recorded_pose'][0],total_transform)) 
                 self.time_index = 0
@@ -192,14 +203,16 @@ class LfD():
                 break
 
             self.rate.sleep()
+        self.buttons.stop_listening()
+
 
     def activate_gripper(self, grip_value):
         if grip_value < self.grip_open_width * 0.9:
             self.robot.grasp_gripper(grip_value)
-            time.sleep(0.1)
+            time.sleep(0.5)
         else: 
             self.robot.move_gripper(grip_value)     
-            time.sleep(0.1)
+            time.sleep(0.5)
 
     def spiral_search(self, goal_pose: PoseStamped, force_min_exit=1): 
         # force_min_exit in Newton. If the verical force is lower than this value, the spiral search is considered successful
@@ -226,6 +239,21 @@ class LfD():
         trasform = transform_between_poses(goal_final, goal_start ) 
 
         return trasform
+
+    def list_all_available_trajectories(self) -> List[str]:
+        """List all available trajectories in the package
+
+        All valid trajectories are stored in trajectory_data/trajectories folder
+        with the ending pkl. This function lists all the available trajectories
+
+        """
+        # Alll files in trajoctory data ending with pkl
+        ros_pack = rospkg.RosPack()
+        self._package_path = ros_pack.get_path('trajectory_data')
+        files = os.listdir(self._package_path + '/trajectories')
+        trajectories = [f.split('.')[0] for f in files if f.endswith('.pkl')]
+        return trajectories
+
 
 
 

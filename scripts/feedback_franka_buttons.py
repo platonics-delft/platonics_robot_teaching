@@ -6,14 +6,6 @@ import yaml
 class FeedbackButtons(Feedback):
     def __init__(self):
         super().__init__()
-        self.pause=False
-        self.spiral_flag = False
-        self.spiral_feedback_correction = False
-        self.stiff_rotation = False
-        self.img_feedback_flag = False
-        self.gripper_closed = False
-        self.blocked = False
-        self.pressed = False
 
         # Connect to the Desk
         ros_pack = rospkg.RosPack()
@@ -24,7 +16,14 @@ class FeedbackButtons(Feedback):
         username = login_info['username']
         password = login_info['password']
         self.desk = panda_py.Desk(hostname, username, password)
+
+    def start_listening(self):
+        self.reset_variables()
         self.desk.listen(self.on_press)
+        self.desk._listening = True
+
+    def stop_listening(self):
+        self.desk._listening = False
 
     def on_press(self, event: typing.Dict) -> None:
         read_events=list(event.keys())
@@ -55,12 +54,32 @@ class FeedbackButtons(Feedback):
                 elif event[read_events[i]] == False:
                     self.blocked = False
 
-            if read_events[i] == 'right':
-                if event[read_events[i]] == True:
-                    feedback_y = 1
             if read_events[i] == 'left':
-                if event[read_events[i]] == True:
-                    feedback_y = -1
+                if event[read_events[i]] == True and not self.blocked:
+                    self.blocked = True
+                    self.pressed=True
+                    if self.stiff_rotation:
+                        print("Stiff rotation disabled")
+                        self.stiff_rotation = False
+                    else:
+                        print("Stiff rotation enabled")
+                        self.stiff_rotation = True
+                elif event[read_events[i]] == False:
+                    self.blocked = False
+
+            if read_events[i] == 'right':
+                if event[read_events[i]] == True and not self.blocked:
+                    self.blocked = True
+                    self.pressed=True
+                    if self.speed_up:
+                        print("Not speeding up execution")
+                        self.speed_up = False
+                    else:
+                        print("Speeding up execution")
+                        self.speed_up = True
+                elif event[read_events[i]] == False:
+                    self.blocked = False
+
             if read_events[i] == 'circle':
                 if event[read_events[i]] == True and not self.blocked:
                     self.blocked = True

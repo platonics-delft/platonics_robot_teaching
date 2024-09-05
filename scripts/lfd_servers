@@ -6,6 +6,7 @@ from lfd import LfD
 from skills_manager.msg import LfdRecordAction, LfdRecordGoal, LfdRecordResult, LfdRecordFeedback
 from skills_manager.msg import LfdExecuteAction, LfdExecuteGoal, LfdExecuteResult, LfdExecuteFeedback
 from skills_manager.msg import LfdHomeAction, LfdHomeGoal, LfdHomeResult, LfdHomeFeedback
+from skills_manager.srv import ListTrajectories, ListTrajectoriesRequest, ListTrajectoriesResponse
 
 
 class LfDServer():
@@ -24,12 +25,19 @@ class LfDServer():
             'lfdHome', LfdHomeAction, self.execute_home, auto_start=False
         )
         self._home_action_server.start()
+        rospy.Service("list_trajectories", ListTrajectories, self.handle_list_trajectories)
+
+    def handle_list_trajectories(self, request: ListTrajectoriesRequest):
+        response = ListTrajectoriesResponse()
+        response.trajectories = self._lfd.list_all_available_trajectories()
+        return response
 
     def execute_execute(self, goal: LfdExecuteGoal):
-        self._lfd.buttons.desk._listening = True
+        self._lfd.buttons.start_listening()
         self._lfd.load(goal.skill_name)
         self._lfd.execute()
-        self._lfd.buttons.desk._listening = False
+        self._lfd.save(goal.skill_name)
+        self._lfd.buttons.stop_listening()
         result = LfdExecuteResult()
         result.success = True
         self._execute_action_server.set_succeeded(result)
@@ -46,7 +54,7 @@ class LfDServer():
         self._lfd.robot.home(
             height=goal.height,
             front_offset=goal.front,
-            side_offset=goal.side
+            side_offset=goal.side,
         )
         self._lfd.robot.offset_compensator(10)
         result = LfdHomeResult()

@@ -8,29 +8,26 @@ import sys
 import os
 import rospy
 import numpy as np
-from panda_ros.pose_transform_functions import array_quat_2_pose
+from platonics_vision.srv import IterativeRegistrationLocalizer, IterativeRegistrationLocalizerRequest, IterativeRegistrationLocalizerResponse
 
+from panda_ros.pose_transform_functions import pose_2_transformation
 if __name__ == '__main__':
+    rospy.init_node("play_all_skills_node")
     localize_box = rospy.get_param('/execute_node/localize_box')
     print("Localize box: ", localize_box)
     lfd = LfD()
-    
-    position = rospy.get_param("position")
-    orientation = rospy.get_param("orientation") 
-
-    pos_array = np.array([position['x'], position['y'], position['z']])
-    quat = np.quaternion(orientation['w'], orientation['x'], orientation['y'], orientation['z'])
-    goal = array_quat_2_pose(pos_array, quat)
-    goal.header.seq = 1
-    goal.header.stamp = rospy.Time.now()
-    lfd.go_to_pose(goal)
 
     if localize_box:
-        rospy.wait_for_service('active_localizer')
-        active_localizer = rospy.ServiceProxy('active_localizer', Trigger)
-        resp = active_localizer()
-        lfd.compute_final_transform() 
+        rospy.wait_for_service('iterative_sift_localizer')
+        active_localizer = rospy.ServiceProxy('iterative_sift_localizer', IterativeRegistrationLocalizer)
+        request = IterativeRegistrationLocalizerRequest()
+        request.steps.data = 2
+        resp: IterativeRegistrationLocalizerResponse = active_localizer(request)
+        lfd.localization_transform = pose_2_transformation(resp.pose)
     try:
+
+        lfd.load("button_blue")
+        lfd.execute()
         
         lfd.load("peg_pick")
         lfd.execute()
