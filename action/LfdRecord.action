@@ -2,4 +2,9 @@ string skill_name
 ---
 bool success
 ---
-int32 waypoint
+int32 trajectory_length
+bool spiraling
+bool paused
+bool camera_feedback
+bool stiffness
+bool gripper

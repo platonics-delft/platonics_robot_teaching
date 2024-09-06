@@ -51,7 +51,7 @@ class LfD():
 
         rospy.sleep(1)
 
-    def kinesthetic_teaching(self, trigger=0.005):
+    def init_record(self, trigger):
         self.buttons.start_listening()
         init_pos = self.robot.curr_pos
         perturbation = 0 
@@ -63,10 +63,11 @@ class LfD():
             perturbation = math.sqrt((self.robot.curr_pos[0]-init_pos[0])**2 + (self.robot.curr_pos[1]-init_pos[1])**2 + (self.robot.curr_pos[2]-init_pos[2])**2)
                 # trigger for starting the recording
         self.robot.set_stiffness(0, 0, 0, 0, 0, 0, 0)
+        self.robot.set_K.update_configuration({"joint_default_damping": 1.00})
         self.recorded_pose = [self.robot.curr_pose]
         self.recorded_img = [self.camera.curr_image]
-        self.recorded_img_feedback_flag = [0]
-        self.recorded_spiral_flag = [0]
+        self.recorded_img_feedback_flag = [False]
+        self.recorded_spiral_flag = [False]
         if self.robot.gripper_width < self.grip_open_width * 0.9:
             self.buttons.gripper_closed = True
             self.gripper_state = True
@@ -78,37 +79,15 @@ class LfD():
         print("Recording started. Press Esc to stop.")
 
         self.buttons.end = False
+
+    def kinesthetic_teaching(self, trigger=0.005):
+        self.init_record(trigger=trigger)
         while not self.buttons.end:
-            while(self.buttons.pause):
-                self.rate.sleep()
-            poses=  interpolate_poses(self.recorded_pose[-1],self.robot.curr_pose, self.safe_distance_lin, self.safe_distance_ori)[1:]
-            
-            grip_value = self.grip_close_width if self.buttons.gripper_closed else self.grip_open_width
-            change_gripper_state = self.gripper_state != self.buttons.gripper_closed
-            self.gripper_state = self.buttons.gripper_closed
-            # print("Change gripper state: ", change_gripper_state)
-            if change_gripper_state:
-                self.activate_gripper(grip_value)
-            
+            self.record_step()
+        self.end_record()
 
-            if self.buttons.stiff_rotation:
-                self.robot.goal_pub.publish(self.robot.curr_pose)
-                self.robot.set_stiffness(0, 0,0, 30, 30, 30, 0)
-            else:
-                self.robot.set_stiffness(0, 0, 0, 0, 0, 0, 0)
-
-            self.recorded_pose.extend(poses)
-            self.recorded_gripper.extend([grip_value]*len(poses))
-            self.recorded_img.extend([self.camera.curr_image]*len(poses))
-            self.recorded_img_feedback_flag.extend([self.buttons.img_feedback_flag]*len(poses))
-            self.recorded_spiral_flag.extend([self.buttons.spiral_flag]*len(poses))
-
-            if self.buttons.pressed:
-                self.buttons.pressed=False
-                self.robot.vibrate(0.2)
-            self.rate.sleep()
+    def end_record(self):
         self.buttons.stop_listening()
-
         goal = self.robot.curr_pose
         goal.header = Header(seq=1, stamp=rospy.Time.now(), frame_id="map")
         self.robot.goal_pub.publish(goal)
@@ -122,20 +101,60 @@ class LfD():
             'recorded_spiral_flag': self.recorded_spiral_flag
         }
 
+    def record_step(self):
+        while(self.buttons.pause):
+            self.rate.sleep()
+        poses=  interpolate_poses(self.recorded_pose[-1],self.robot.curr_pose, self.safe_distance_lin, self.safe_distance_ori)[1:]
+        
+        grip_value = self.grip_close_width if self.buttons.gripper_closed else self.grip_open_width
+        change_gripper_state = self.gripper_state != self.buttons.gripper_closed
+        self.gripper_state = self.buttons.gripper_closed
+        # print("Change gripper state: ", change_gripper_state)
+        if change_gripper_state:
+            self.activate_gripper(grip_value)
+        
+
+        if self.buttons.stiff_rotation:
+            self.robot.goal_pub.publish(self.robot.curr_pose)
+            self.robot.set_stiffness(0, 0,0, 30, 30, 30, 0)
+        else:
+            self.robot.set_stiffness(0, 0, 0, 0, 0, 0, 0)
+
+        self.recorded_pose.extend(poses)
+        self.recorded_gripper.extend([grip_value]*len(poses))
+        self.recorded_img.extend([self.camera.curr_image]*len(poses))
+        self.recorded_img_feedback_flag.extend([self.buttons.img_feedback_flag]*len(poses))
+        self.recorded_spiral_flag.extend([self.buttons.spiral_flag]*len(poses))
+
+        if self.buttons.pressed:
+            self.buttons.pressed=False
+            self.robot.vibrate(0.2)
+        self.rate.sleep()
+
+
 
     def execute(self, retry_insertion_flag=0, execution_speed=1):
+        self.execute_start(execution_speed)
+        while not(self.buttons.end):
+            end_execute = self.execute_step(retry_insertion_flag)
+            if end_execute:
+                break
+        self.execute_end()
+
+    def execute_start(self, execution_speed):
         self.buttons.start_listening()
 
         rospy.loginfo("Executing trajectory.")
         self.rate=rospy.Rate(self.control_rate * execution_speed)
 
-        total_transform = self.localization_transform
+        self.total_transform = self.localization_transform
         self.servoing_transform = np.eye(4)
         self.spiral_transform = np.eye(4)
-        self.robot.go_to_pose_ik(transform_pose(self.data['recorded_pose'][0],total_transform)) 
+        self.robot.go_to_pose_ik(transform_pose(self.data['recorded_pose'][0],self.total_transform)) 
         self.robot.set_stiffness(3000, 3000, 3000, 30, 30, 30, 0)
         self.robot.set_K.update_configuration({"max_delta_lin": 0.05})
-        self.robot.set_K.update_configuration({"max_delta_ori": 0.30}) 
+        self.robot.set_K.update_configuration({"max_delta_ori": 0.20}) 
+        self.robot.set_K.update_configuration({"joint_default_damping": 0.00})
 
         self.time_index=0
 
@@ -149,64 +168,68 @@ class LfD():
 
         self.robot.change_in_safety_check = False
         self.buttons.end = False
-        while not(self.buttons.end):
 
-            self.data= self.buttons.human_feedback(self.data, self.time_index)
-            #self.data = self.space_nav_feedback.human_feedback(self.data, self.time_index)
 
-            current_time=rospy.Time.now().to_sec()
-            camera_delay = current_time-self.camera.time
+    def execute_step(self, retry_insertion_flag) -> bool:
+        self.data= self.buttons.human_feedback(self.data, self.time_index)
+        #self.data = self.space_nav_feedback.human_feedback(self.data, self.time_index)
 
-            ### Perform camera corrections
-            if self.data['recorded_img_feedback_flag'][self.time_index] and not self.camera.starting and (camera_delay * self.control_rate) < self.acceptable_camera_delay_steps:
-                self.servoing_transform=self.camera.sift_matching(target_img=self.data['recorded_img'][self.time_index])
-                total_transform = self.servoing_transform @ total_transform
-            
-            ### Perform spiral search
-            if self.data['recorded_spiral_flag'][self.time_index]:
-                if self.robot.force.z > self.insertion_force_threshold:
-                    self.spiral_transform = self.spiral_search(self.robot.goal_pose) #goal_pose)
-                    total_transform = self.spiral_transform @ total_transform
+        current_time=rospy.Time.now().to_sec()
+        camera_delay = current_time-self.camera.time
 
-            ### Retry check
-            force = np.linalg.norm([self.robot.force.x, self.robot.force.y, self.robot.force.z])
-            if retry_insertion_flag and force > self.insertion_force_threshold:
-                if self.retry_counter >= self.retry_limit:
-                    self.robot.move_gripper(self.grip_open_width)
-                    break
-                self.robot.go_to_pose(transform_pose(self.data['recorded_pose'][0],total_transform)) 
-                self.time_index = 0
-                self.retry_counter = self.retry_counter + 1
-            ### Safety check
-            if self.robot.safety_check: self.time_index += 1
-            if self.robot.change_in_safety_check:
-                if self.robot.safety_check:
-                        self.robot.set_stiffness(self.robot.K_pos, self.robot.K_pos, self.robot.K_pos, self.robot.K_ori, self.robot.K_ori, self.robot.K_ori, 0)
-                else:
-                    # print("Safety violation detected. Making the robot compliant")
-                    self.robot.set_stiffness(self.robot.K_pos_safe, self.robot.K_pos_safe, self.robot.K_pos_safe, self.robot.K_ori_safe, self.robot.K_ori_safe, self.robot.K_ori_safe, 0)
-            ### Publish the goal pose
-            self.time_index = min(self.time_index, len(self.data['recorded_pose'])-1)
-            goal_pose = self.data['recorded_pose'][self.time_index]
-            goal_pose.header = {"seq": 1, "stamp": rospy.Time.now(), "frame_id": "map"}
+        ### Perform camera corrections
+        if self.data['recorded_img_feedback_flag'][self.time_index] and not self.camera.starting and (camera_delay * self.control_rate) < self.acceptable_camera_delay_steps:
+            self.servoing_transform=self.camera.sift_matching(target_img=self.data['recorded_img'][self.time_index])
+            self.total_transform = self.servoing_transform @ self.total_transform
+        
+        ### Perform spiral search
+        if self.data['recorded_spiral_flag'][self.time_index]:
+            if self.robot.force.z > self.insertion_force_threshold:
+                self.spiral_transform = self.spiral_search(self.robot.goal_pose) #goal_pose)
+                self.total_transform = self.spiral_transform @ self.total_transform
 
-            goal_pose=transform_pose(goal_pose, total_transform)
-            self.robot.goal_pub.publish(goal_pose) 
-
-            # Activate the gripper
-            if self.data['recorded_gripper'][self.time_index] < self.grip_open_width * 0.9:
-                self.buttons.gripper_closed = True
+        ### Retry check
+        force = np.linalg.norm([self.robot.force.x, self.robot.force.y, self.robot.force.z])
+        if retry_insertion_flag and force > self.insertion_force_threshold:
+            if self.retry_counter >= self.retry_limit:
+                self.robot.move_gripper(self.grip_open_width)
+                return True
+            self.robot.go_to_pose(transform_pose(self.data['recorded_pose'][0],self.total_transform)) 
+            self.time_index = 0
+            self.retry_counter = self.retry_counter + 1
+        ### Safety check
+        if self.robot.safety_check: self.time_index += 1
+        if self.robot.change_in_safety_check:
+            if self.robot.safety_check:
+                    self.robot.set_stiffness(self.robot.K_pos, self.robot.K_pos, self.robot.K_pos, self.robot.K_ori, self.robot.K_ori, self.robot.K_ori, 0)
             else:
-                self.buttons.gripper_closed = False
-            change_gripper_state = self.gripper_state != self.buttons.gripper_closed
-            self.gripper_state = self.buttons.gripper_closed
-            if change_gripper_state:
-                self.activate_gripper(self.data['recorded_gripper'][self.time_index])
+                # print("Safety violation detected. Making the robot compliant")
+                self.robot.set_stiffness(self.robot.K_pos_safe, self.robot.K_pos_safe, self.robot.K_pos_safe, self.robot.K_ori_safe, self.robot.K_ori_safe, self.robot.K_ori_safe, 0)
+        ### Publish the goal pose
+        self.time_index = min(self.time_index, len(self.data['recorded_pose'])-1)
+        goal_pose = self.data['recorded_pose'][self.time_index]
+        goal_pose.header = {"seq": 1, "stamp": rospy.Time.now(), "frame_id": "map"}
 
-            if self.time_index == (len(self.data['recorded_pose'])-1):
-                break
+        goal_pose=transform_pose(goal_pose, self.total_transform)
+        self.robot.goal_pub.publish(goal_pose) 
 
-            self.rate.sleep()
+        # Activate the gripper
+        if self.data['recorded_gripper'][self.time_index] < self.grip_open_width * 0.9:
+            self.buttons.gripper_closed = True
+        else:
+            self.buttons.gripper_closed = False
+        change_gripper_state = self.gripper_state != self.buttons.gripper_closed
+        self.gripper_state = self.buttons.gripper_closed
+        if change_gripper_state:
+            self.activate_gripper(self.data['recorded_gripper'][self.time_index])
+
+        if self.time_index == (len(self.data['recorded_pose'])-1):
+            return True
+
+        self.rate.sleep()
+        return False
+
+    def execute_end(self):
         self.buttons.stop_listening()
 
 

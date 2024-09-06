@@ -4,4 +4,9 @@ std_msgs/String template_file_name
 ---
 bool success
 ---
-int32 waypoint
+string skill_name
+int32 waypoint_index
+bool spiraling
+bool camera_feedback
+bool stiffness
+bool gripper
