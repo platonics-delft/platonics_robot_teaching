@@ -113,12 +113,13 @@ class LfD():
         if change_gripper_state:
             self.activate_gripper(grip_value)
         
-
-        if self.buttons.stiff_rotation:
-            self.robot.goal_pub.publish(self.robot.curr_pose)
-            self.robot.set_stiffness(0, 0,0, 30, 30, 30, 0)
-        else:
-            self.robot.set_stiffness(0, 0, 0, 0, 0, 0, 0)
+        if self.buttons.change_in_stiff_rotation:
+            if self.buttons.stiff_rotation:
+                self.robot.goal_pub.publish(self.robot.curr_pose)
+                self.robot.set_stiffness(0, 0,0, 30, 30, 30, 0)
+            else:
+                self.robot.set_stiffness(0, 0, 0, 0, 0, 0, 0)
+            self.buttons.change_in_stiff_rotation=False
 
         self.recorded_pose.extend(poses)
         self.recorded_gripper.extend([grip_value]*len(poses))

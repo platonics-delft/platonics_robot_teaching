@@ -61,9 +61,11 @@ class FeedbackButtons(Feedback):
                     if self.stiff_rotation:
                         print("Stiff rotation disabled")
                         self.stiff_rotation = False
+                        self.change_in_stiff_rotation=True
                     else:
                         print("Stiff rotation enabled")
                         self.stiff_rotation = True
+                        self.change_in_stiff_rotation=True
                 elif event[read_events[i]] == False:
                     self.blocked = False
 

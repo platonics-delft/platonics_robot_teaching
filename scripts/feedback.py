@@ -22,6 +22,7 @@ class Feedback():
         self.speed_up = False
         self.faster_counter=0
         self.feedback=np.zeros(3)
+        self.change_in_stiff_rotation = False
 
 
     def start_listening(self):
