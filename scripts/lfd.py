@@ -154,7 +154,7 @@ class LfD():
         self.robot.go_to_pose_ik(transform_pose(self.data['recorded_pose'][0],self.total_transform)) 
         self.robot.set_stiffness(3000, 3000, 3000, 30, 30, 30, 0)
         self.robot.set_K.update_configuration({"max_delta_lin": 0.05})
-        self.robot.set_K.update_configuration({"max_delta_ori": 0.20}) 
+        self.robot.set_K.update_configuration({"max_delta_ori": 0.50}) 
         self.robot.set_K.update_configuration({"joint_default_damping": 0.00})
 
         self.time_index=0
