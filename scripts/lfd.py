@@ -172,7 +172,7 @@ class LfD():
 
     def execute_step(self, retry_insertion_flag) -> bool:
         self.data= self.buttons.human_feedback(self.data, self.time_index)
-        #self.data = self.space_nav_feedback.human_feedback(self.data, self.time_index)
+        self.data = self.space_nav_feedback.human_feedback(self.data, self.time_index)
 
         current_time=rospy.Time.now().to_sec()
         camera_delay = current_time-self.camera.time
