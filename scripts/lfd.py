@@ -232,6 +232,11 @@ class LfD():
     def execute_end(self):
         self.buttons.stop_listening()
 
+    def abort(self):
+        self.robot.stop_gripper()
+        self.robot.set_stiffness(600, 600, 600, 10, 10, 10, 0)
+
+
 
     def activate_gripper(self, grip_value):
         if grip_value < self.grip_open_width * 0.9:

@@ -65,39 +65,50 @@ class LfDServer():
         result.success = True
         self._execute_action_server.set_succeeded(result)
 
+
     def execute_execute_sequence(self, goal: LfdExecuteSequenceGoal):
         rospy.loginfo("Received request")
         feedback = LfdExecuteSequenceFeedback()
+        result = LfdExecuteSequenceResult()
+        result.success = True
         if goal.localize_box:
             request = IterativeRegistrationLocalizerRequest()
             request.steps.data = 2
             request.template_file_name = goal.template_file_name
             resp: IterativeRegistrationLocalizerResponse = self.iterative_localizer(request)
             self._lfd.localization_transform = pose_2_transformation(resp.pose)
+        aborting = False
         for skill_name in goal.skill_names:
+            if aborting:
+                self._lfd.execute_end()
+                break
             feedback.skill_name = skill_name
             self._lfd.buttons.start_listening()
             self._lfd.load(skill_name)
-            #self._lfd.execute()
             execution_speed = 1
             self._lfd.execute_start(execution_speed)
             retry_insertion_flag = 0
             while not(self._lfd.buttons.end):
                 end_execute = self._lfd.execute_step(retry_insertion_flag)
+                if self._execute_sequence_action_server.is_preempt_requested():
+                    result.success = False
+                    end_execute = True
+                    aborting = True
+                    self._execute_sequence_action_server.set_preempted(result)
+                if end_execute:
+                    break
                 feedback.camera_feedback = self._lfd.buttons.img_feedback_flag
                 feedback.spiraling = self._lfd.buttons.spiral_flag
                 feedback.stiffness = self._lfd.buttons.stiff_rotation
                 feedback.gripper = self._lfd.gripper_state
                 feedback.waypoint_index = self._lfd.time_index
                 self._execute_sequence_action_server.publish_feedback(feedback)
-                if end_execute:
-                    break
             self._lfd.execute_end()
             self._lfd.save(skill_name)
-            self._lfd.buttons.stop_listening()
-        result = LfdExecuteSequenceResult()
-        result.success = True
-        self._execute_sequence_action_server.set_succeeded(result)
+        if result.success:
+            self._execute_sequence_action_server.set_succeeded(result)
+        if aborting:
+            self._lfd.abort()
 
 
     def execute_record(self, goal: LfdRecordGoal):
