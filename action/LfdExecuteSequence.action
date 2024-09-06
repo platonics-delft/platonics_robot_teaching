@@ -1,5 +1,6 @@
 string[] skill_names
 bool localize_box
+std_msgs/String template_file_name
 ---
 bool success
 ---

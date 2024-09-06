@@ -44,6 +44,13 @@ class LfDServer():
 
     def execute_execute(self, goal: LfdExecuteGoal):
         rospy.loginfo("Received request")
+        if goal.localize_box:
+            request = IterativeRegistrationLocalizerRequest()
+            request.steps.data = 2
+            request.template_file_name = goal.template_file_name
+            resp: IterativeRegistrationLocalizerResponse = self.iterative_localizer(request)
+            self._lfd.localization_transform = pose_2_transformation(resp.pose)
+        self._lfd.buttons.start_listening()
         self._lfd.buttons.start_listening()
         self._lfd.load(goal.skill_name)
         self._lfd.execute()
@@ -58,14 +65,15 @@ class LfDServer():
         if goal.localize_box:
             request = IterativeRegistrationLocalizerRequest()
             request.steps.data = 2
+            request.template_file_name = goal.template_file_name
             resp: IterativeRegistrationLocalizerResponse = self.iterative_localizer(request)
             self._lfd.localization_transform = pose_2_transformation(resp.pose)
-        self._lfd.buttons.start_listening()
         for skill_name in goal.skill_names:
+            self._lfd.buttons.start_listening()
             self._lfd.load(skill_name)
             self._lfd.execute()
             self._lfd.save(skill_name)
-        self._lfd.buttons.stop_listening()
+            self._lfd.buttons.stop_listening()
         result = LfdExecuteSequenceResult()
         result.success = True
         self._execute_sequence_action_server.set_succeeded(result)
