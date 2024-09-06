@@ -23,7 +23,7 @@ class LfD():
     data = {}
     def __init__(self):
         super(LfD, self).__init__()
-        self.control_rate = 30
+        self.control_rate = 60
         self.rate=rospy.Rate(self.control_rate)
         
         self._tf_broadcaster = tf.TransformBroadcaster()
@@ -134,19 +134,19 @@ class LfD():
 
 
 
-    def execute(self, retry_insertion_flag=0, execution_speed=1):
-        self.execute_start(execution_speed)
+    def execute(self, retry_insertion_flag=0):
+        self.execute_start()
         while not(self.buttons.end):
             end_execute = self.execute_step(retry_insertion_flag)
             if end_execute:
                 break
         self.execute_end()
 
-    def execute_start(self, execution_speed):
+    def execute_start(self):
         self.buttons.start_listening()
 
         rospy.loginfo("Executing trajectory.")
-        self.rate=rospy.Rate(self.control_rate * execution_speed)
+        self.rate=rospy.Rate(self.control_rate)
 
         self.total_transform = self.localization_transform
         self.servoing_transform = np.eye(4)

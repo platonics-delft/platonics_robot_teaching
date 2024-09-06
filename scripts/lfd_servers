@@ -85,8 +85,7 @@ class LfDServer():
             feedback.skill_name = skill_name
             self._lfd.buttons.start_listening()
             self._lfd.load(skill_name)
-            execution_speed = 1
-            self._lfd.execute_start(execution_speed)
+            self._lfd.execute_start()
             retry_insertion_flag = 0
             while not(self._lfd.buttons.end):
                 end_execute = self._lfd.execute_step(retry_insertion_flag)
