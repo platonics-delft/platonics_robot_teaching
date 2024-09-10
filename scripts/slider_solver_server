@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+import rospy
+import actionlib
+
+from skills_manager.msg import LfdRecordAction, LfdRecordGoal, LfdRecordResult, LfdRecordFeedback
+from platonics_vision.srv import IterativeRegistrationLocalizer, IterativeRegistrationLocalizerRequest, IterativeRegistrationLocalizerResponse
+
+from panda_ros.pose_transform_functions import pose_2_transformation
+
+class SliderSolverServer():
+    def __init__(self):
+        rospy.init_node("slider_node")
+        self._slider_solver = SliderSolver()
+        self.establish_ros_connections()
+
+    def establish_ros_connections(self):
+        self._detect_triangles_action_server = actionlib.SimpleActionServer(
+            'solveSlider', SolveSlider, self.solve_slider, auto_start=False
+        )
+        self._record_action_server.start()
+
+    def solve_slider(self, goal: SliderGoal):
+        self._slider_solver.solve_slider(task_stage)
+
+    def run(self):
+        while not rospy.is_shutdown():
+            self._lfd.rate.sleep()
+
+if __name__ == "__main__":
+    node = LfDServer()
+    try:
+        node.run()
+    except rospy.ROSInterruptException:
+        pass
+
