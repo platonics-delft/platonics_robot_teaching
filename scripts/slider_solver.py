@@ -14,7 +14,7 @@ import pickle
 import cv2
 from cv_bridge import CvBridgeError, CvBridge
 import datetime
-from triangle_detector import TriangleDetector
+from platonics_vision.scripts.triangle_detector import TriangleDetector
 
 class SliderPusher():
     def __init__(self):
