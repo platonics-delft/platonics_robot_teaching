@@ -159,13 +159,21 @@ class LfD():
 
         self.time_index=0
 
-        self.activate_gripper(self.data['recorded_gripper'][self.time_index])
-        if self.robot.gripper_width < self.grip_open_width * 0.9:
+        # Activate the gripper
+        if self.data['recorded_gripper'][self.time_index] < self.grip_open_width * 0.9:
             self.buttons.gripper_closed = True
             self.gripper_state = True
         else:
             self.buttons.gripper_closed = False
             self.gripper_state = False
+        if self.data['recorded_gripper'][self.time_index] < self.grip_open_width * 0.9:
+            self.buttons.gripper_closed = True
+        else:
+            self.buttons.gripper_closed = False
+        change_gripper_state = self.gripper_state != self.buttons.gripper_closed
+        self.gripper_state = self.buttons.gripper_closed
+        if change_gripper_state:
+            self.activate_gripper(self.data['recorded_gripper'][self.time_index])
 
         self.robot.change_in_safety_check = False
         self.buttons.end = False
