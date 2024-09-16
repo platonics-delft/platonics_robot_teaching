@@ -26,6 +26,7 @@ add_action_files(
   LfdRecord.action
   LfdExecute.action
   LfdExecuteSequence.action
+  AbortGripper.action
 )
 
 generate_messages(

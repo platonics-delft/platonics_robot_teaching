@@ -7,6 +7,7 @@ from skills_manager.msg import LfdRecordAction, LfdRecordGoal, LfdRecordResult, 
 from skills_manager.msg import LfdExecuteAction, LfdExecuteGoal, LfdExecuteResult, LfdExecuteFeedback
 from skills_manager.msg import LfdExecuteSequenceAction, LfdExecuteSequenceGoal, LfdExecuteSequenceResult, LfdExecuteSequenceFeedback
 from skills_manager.msg import LfdHomeAction, LfdHomeGoal, LfdHomeResult, LfdHomeFeedback
+from skills_manager.msg import AbortGripperAction, AbortGripperGoal, AbortGripperResult, AbortGripperFeedback
 from skills_manager.srv import ListTrajectories, ListTrajectoriesRequest, ListTrajectoriesResponse
 from platonics_vision.srv import IterativeRegistrationLocalizer, IterativeRegistrationLocalizerRequest, IterativeRegistrationLocalizerResponse
 
@@ -40,12 +41,24 @@ class LfDServer():
         rospy.wait_for_service('iterative_sift_localizer')
         self.iterative_localizer = rospy.ServiceProxy('iterative_sift_localizer', IterativeRegistrationLocalizer)
 
+        self._open_gripper_action_server = actionlib.SimpleActionServer(
+            'abort_gripper', AbortGripperAction, self.execute_open_gripper, auto_start=False
+        )
+        self._open_gripper_action_server.start()
+
 
 
     def handle_list_trajectories(self, request: ListTrajectoriesRequest):
         response = ListTrajectoriesResponse()
         response.trajectories = self._lfd.list_all_available_trajectories()
         return response
+
+    def execute_open_gripper(self, goal: AbortGripperGoal):
+        self._lfd.robot.stop_gripper()
+        self._lfd.robot.home_gripper()
+        result = AbortGripperResult()
+        result.success = True
+        self._open_gripper_action_server.set_succeeded(result)
 
     def execute_execute(self, goal: LfdExecuteGoal):
         rospy.loginfo("Received request")
