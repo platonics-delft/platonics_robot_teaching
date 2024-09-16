@@ -51,7 +51,7 @@ class LfDServer():
         rospy.loginfo("Received request")
         if goal.localize_box:
             request = IterativeRegistrationLocalizerRequest()
-            request.steps.data = 2
+            request.steps.data = 4
             request.template_file_name = goal.template_file_name
             resp: IterativeRegistrationLocalizerResponse = self.iterative_localizer(request)
             self._lfd.localization_transform = pose_2_transformation(resp.pose)

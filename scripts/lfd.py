@@ -16,6 +16,14 @@ from feedback_spacenav import FeedbackSpacenav
 from panda_ros.pose_transform_functions import transform_pose, transform_between_poses, interpolate_poses, transformation_2_pose
 from copy import deepcopy
 import pickle
+from geometry_msgs.msg import Point
+
+def point_iter(self):
+    yield self.x
+    yield self.y
+    yield self.z
+
+Point.__iter__ = point_iter
 
 
 
@@ -37,6 +45,7 @@ class LfD():
         self.grip_open_width = 0.02
         self.grip_close_width = 0.0
         self.retry_limit = 3
+        self.compensation_rate = 5
 
 
         self.insertion_force_threshold = 5
@@ -190,18 +199,24 @@ class LfD():
         current_time=rospy.Time.now().to_sec()
         camera_delay = current_time-self.camera.time
 
-        ### Perform camera corrections
-        if self.data['recorded_img_feedback_flag'][self.time_index] and not self.camera.starting and (camera_delay * self.control_rate) < self.acceptable_camera_delay_steps:
-            self.servoing_transform=self.camera.sift_matching(target_img=self.data['recorded_img'][self.time_index])
-            # self.total_transform = self.servoing_transform @ self.total_transform
+        attractor_change_rate = np.linalg.norm(np.array(list(self.data['recorded_pose'][self.time_index].pose.position)) - np.array(list(self.data['recorded_pose'][min(len(self.data['recorded_pose'])-1, self.time_index+10)].pose.position)))
+        if attractor_change_rate < 5e-4 and self.time_index % np.floor(self.control_rate/self.compensation_rate) == 0:
             curr_pose = deepcopy(self.robot.curr_pose)
+            rospy.loginfo("Compensating")
             goal_pose = deepcopy(transform_pose(self.data['recorded_pose'][self.time_index], self.total_transform))
             transform_curr_pose_2_goal = transform_between_poses(goal_pose, curr_pose) 
             pose_curr_pose_2_goal = transformation_2_pose(transform_curr_pose_2_goal)
             self.pose_curr_2_goal_pub.publish(pose_curr_pose_2_goal)
             self.compensation_transform = transform_curr_pose_2_goal @ self.compensation_transform
+        elif attractor_change_rate > 5e-4:
+            self.compensation_transform = np.eye(4)
 
-            # self.total_transform = transform_curr_pose_2_goal @ self.total_transform
+
+
+        ### Perform camera corrections
+        if self.data['recorded_img_feedback_flag'][self.time_index] and not self.camera.starting and (camera_delay * self.control_rate) < self.acceptable_camera_delay_steps and self.time_index % np.floor(self.control_rate/self.camera._rate) == 0:
+            self.servoing_transform=self.camera.sift_matching(target_img=self.data['recorded_img'][self.time_index])
+            self.total_transform = self.servoing_transform @ self.total_transform
         
         ### Perform spiral search
         if self.data['recorded_spiral_flag'][self.time_index]:

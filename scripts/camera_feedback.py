@@ -37,6 +37,7 @@ class Camera():
         self.row_crop_pct_bot = 1 #1.0
         self.col_crop_pct_left = 0 #0.3
         self.col_crop_pct_right = 1 #0.7
+        self._rate = 20
 
         self.ds_factor = 4 # Downsample factor
 
