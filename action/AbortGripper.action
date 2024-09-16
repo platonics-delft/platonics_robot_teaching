@@ -1,0 +1,5 @@
+bool open
+---
+bool success
+---
+float32 open_width
