@@ -13,7 +13,7 @@ from panda_ros import Panda
 from feedback_franka_buttons import FeedbackButtons as Feedback
 from feedback_spacenav import FeedbackSpacenav
 # from feedback_keyboard import FeedbackKeyboard as Feedback
-from panda_ros.pose_transform_functions import transform_pose, transform_between_poses, interpolate_poses
+from panda_ros.pose_transform_functions import transform_pose, transform_between_poses, interpolate_poses, transformation_2_pose
 from copy import deepcopy
 import pickle
 
@@ -44,10 +44,12 @@ class LfD():
 
         self.localization_transform = np.eye(4)
 
-        self.safe_distance_lin=0.005
-        self.safe_distance_ori=0.020
+        self.safe_distance_lin=0.002
+        self.safe_distance_ori=0.010
 
         self.acceptable_camera_delay_steps = 2
+
+        self.pose_curr_2_goal_pub = rospy.Publisher('/pose_curr_to_goal', PoseStamped, queue_size=0)
 
         rospy.sleep(1)
 
@@ -149,6 +151,7 @@ class LfD():
         self.rate=rospy.Rate(self.control_rate)
 
         self.total_transform = self.localization_transform
+        self.compensation_transform = np.eye(4)
         self.servoing_transform = np.eye(4)
         self.spiral_transform = np.eye(4)
         self.robot.go_to_pose_ik(transform_pose(self.data['recorded_pose'][0],self.total_transform)) 
@@ -156,6 +159,7 @@ class LfD():
         self.robot.set_K.update_configuration({"max_delta_lin": 0.05})
         self.robot.set_K.update_configuration({"max_delta_ori": 0.50}) 
         self.robot.set_K.update_configuration({"joint_default_damping": 0.00})
+        self.robot.offset_compensator(10)
 
         self.time_index=0
 
@@ -189,7 +193,15 @@ class LfD():
         ### Perform camera corrections
         if self.data['recorded_img_feedback_flag'][self.time_index] and not self.camera.starting and (camera_delay * self.control_rate) < self.acceptable_camera_delay_steps:
             self.servoing_transform=self.camera.sift_matching(target_img=self.data['recorded_img'][self.time_index])
-            self.total_transform = self.servoing_transform @ self.total_transform
+            # self.total_transform = self.servoing_transform @ self.total_transform
+            curr_pose = deepcopy(self.robot.curr_pose)
+            goal_pose = deepcopy(transform_pose(self.data['recorded_pose'][self.time_index], self.total_transform))
+            transform_curr_pose_2_goal = transform_between_poses(goal_pose, curr_pose) 
+            pose_curr_pose_2_goal = transformation_2_pose(transform_curr_pose_2_goal)
+            self.pose_curr_2_goal_pub.publish(pose_curr_pose_2_goal)
+            self.compensation_transform = transform_curr_pose_2_goal @ self.compensation_transform
+
+            # self.total_transform = transform_curr_pose_2_goal @ self.total_transform
         
         ### Perform spiral search
         if self.data['recorded_spiral_flag'][self.time_index]:
@@ -219,7 +231,7 @@ class LfD():
         goal_pose = self.data['recorded_pose'][self.time_index]
         goal_pose.header = {"seq": 1, "stamp": rospy.Time.now(), "frame_id": "map"}
 
-        goal_pose=transform_pose(goal_pose, self.total_transform)
+        goal_pose=transform_pose(goal_pose, self.compensation_transform @ self.total_transform)
         self.robot.goal_pub.publish(goal_pose) 
 
         # Activate the gripper
