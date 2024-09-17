@@ -115,8 +115,9 @@ class LfD():
         }
 
     def record_step(self):
-        while(self.buttons.pause):
+        if self.buttons.pause:
             self.rate.sleep()
+            return
         poses=  interpolate_poses(self.recorded_pose[-1],self.robot.curr_pose, self.safe_distance_lin, self.safe_distance_ori)[1:]
         
         grip_value = self.grip_close_width if self.buttons.gripper_closed else self.grip_open_width
@@ -175,11 +176,9 @@ class LfD():
         self.time_index=0
 
         # Activate the gripper
-        if self.data['recorded_gripper'][self.time_index] < self.grip_open_width * 0.9:
-            self.buttons.gripper_closed = True
+        if self.robot.gripper_width < self.grip_open_width * 0.9:
             self.gripper_state = True
         else:
-            self.buttons.gripper_closed = False
             self.gripper_state = False
         if self.data['recorded_gripper'][self.time_index] < self.grip_open_width * 0.9:
             self.buttons.gripper_closed = True
@@ -255,12 +254,16 @@ class LfD():
         self.robot.goal_pub.publish(goal_pose) 
 
         # Activate the gripper
-        if self.data['recorded_gripper'][self.time_index] < self.grip_open_width * 0.9:
-            self.buttons.gripper_closed = True
+        if self.robot.gripper_width < self.grip_open_width * 0.9:
+            self.gripper_state = True
         else:
-            self.buttons.gripper_closed = False
-        change_gripper_state = self.gripper_state != self.buttons.gripper_closed
-        self.gripper_state = self.buttons.gripper_closed
+            self.gripper_state = False
+        if self.data['recorded_gripper'][self.time_index] < self.grip_open_width * 0.9:
+            self.gripper_state_recording = True
+        else:
+            self.gripper_state_recording = False
+
+        change_gripper_state = self.gripper_state != self.gripper_state_recording
         if change_gripper_state:
             self.activate_gripper(self.data['recorded_gripper'][self.time_index])
 
@@ -299,6 +302,8 @@ class LfD():
         time= 0 
         self.robot.set_stiffness(4000, 4000, 1000, 30, 30, 30, 0) # get more compliant in z direction
         for _ in range(max_spiral_time * self.control_rate):   
+            if self.buttons.end:
+                break
             goal_final.pose.position.x = goal_start.pose.position.x + np.cos(
                 2 * np.pi *rounds_per_second*time) * increase_radius_per_second * time
             goal_final.pose.position.y = goal_start.pose.position.y + np.sin(

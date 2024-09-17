@@ -46,7 +46,10 @@ class Feedback():
             data['recorded_spiral_flag'].pop(time_index+1)
 
         if self.img_feedback_correction:
-            data['recorded_img_feedback_flag'][time_index:] = [self.img_feedback_flag] * len(data['recorded_img_feedback_flag'])
+            print("hi")
+            print(self.img_feedback_flag)
+            data['recorded_img_feedback_flag'][time_index:] = [self.img_feedback_flag] * len(data['recorded_img_feedback_flag'][time_index:])
+
 
         if self.spiral_feedback_correction:
             data['recorded_spiral_flag'][time_index:] = [self.spiral_flag] * len(data['recorded_pose'][time_index:])

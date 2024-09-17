@@ -109,9 +109,8 @@ class LfDServer():
                     self._execute_sequence_action_server.set_preempted(result)
                 if end_execute:
                     break
-                feedback.camera_feedback = self._lfd.buttons.img_feedback_flag
-                feedback.spiraling = self._lfd.buttons.spiral_flag
-                feedback.stiffness = self._lfd.buttons.stiff_rotation
+                feedback.camera_feedback = self._lfd.data['recorded_img_feedback_flag'][self._lfd.time_index]
+                feedback.spiraling = self._lfd.data['recorded_spiral_flag'][self._lfd.time_index]
                 feedback.gripper = self._lfd.gripper_state
                 feedback.waypoint_index = self._lfd.time_index
                 self._execute_sequence_action_server.publish_feedback(feedback)
