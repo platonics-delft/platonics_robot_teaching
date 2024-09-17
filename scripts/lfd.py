@@ -46,6 +46,8 @@ class LfD():
         self.grip_close_width = 0.0
         self.retry_limit = 3
         self.compensation_rate = 5
+        self.window_size_seconds = 1
+        self.window_size_steps = self.window_size_seconds * self.control_rate
 
 
         self.insertion_force_threshold = 5
@@ -199,7 +201,10 @@ class LfD():
         current_time=rospy.Time.now().to_sec()
         camera_delay = current_time-self.camera.time
 
-        attractor_change_rate = np.linalg.norm(np.array(list(self.data['recorded_pose'][self.time_index].pose.position)) - np.array(list(self.data['recorded_pose'][min(len(self.data['recorded_pose'])-1, self.time_index+10)].pose.position)))
+        if self.time_index > self.window_size_steps:
+            attractor_change_rate = np.linalg.norm(np.array(list(self.data['recorded_pose'][self.time_index].pose.position)) - np.array(list(self.data['recorded_pose'][max(0, self.time_index-self.window_size_steps)].pose.position)))
+        else:
+            attractor_change_rate = 1
         if attractor_change_rate < 5e-4 and self.time_index % np.floor(self.control_rate/self.compensation_rate) == 0:
             curr_pose = deepcopy(self.robot.curr_pose)
             rospy.loginfo("Compensating")
