@@ -81,6 +81,7 @@ class LfD():
         self.recorded_img = [self.camera.curr_image]
         self.recorded_img_feedback_flag = [False]
         self.recorded_spiral_flag = [False]
+        self.recorded_compensation_flag = [False]
         if self.robot.gripper_width < self.grip_open_width * 0.9:
             self.buttons.gripper_closed = True
             self.gripper_state = True
@@ -111,7 +112,8 @@ class LfD():
             'recorded_gripper': self.recorded_gripper,
             'recorded_img': self.recorded_img,
             'recorded_img_feedback_flag': self.recorded_img_feedback_flag,
-            'recorded_spiral_flag': self.recorded_spiral_flag
+            'recorded_spiral_flag': self.recorded_spiral_flag,
+            'recorded_compensation_flag': self.recorded_compensation_flag
         }
 
     def record_step(self):
@@ -140,6 +142,7 @@ class LfD():
         self.recorded_img.extend([self.camera.curr_image]*len(poses))
         self.recorded_img_feedback_flag.extend([self.buttons.img_feedback_flag]*len(poses))
         self.recorded_spiral_flag.extend([self.buttons.spiral_flag]*len(poses))
+        self.recorded_compensation_flag.extend([self.buttons.compensation_flag]*len(poses))
 
         if self.buttons.pressed:
             self.buttons.pressed=False
@@ -167,7 +170,7 @@ class LfD():
         self.servoing_transform = np.eye(4)
         self.spiral_transform = np.eye(4)
         self.robot.go_to_pose_ik(transform_pose(self.data['recorded_pose'][0],self.total_transform)) 
-        self.robot.set_stiffness(3000, 3000, 3000, 30, 30, 30, 0)
+        self.robot.set_stiffness(3000, 3000, 3000, 40, 40, 40, 0)
         self.robot.set_K.update_configuration({"max_delta_lin": 0.05})
         self.robot.set_K.update_configuration({"max_delta_ori": 0.50}) 
         self.robot.set_K.update_configuration({"joint_default_damping": 0.00})
@@ -200,11 +203,13 @@ class LfD():
         current_time=rospy.Time.now().to_sec()
         camera_delay = current_time-self.camera.time
 
+
+        ### Perform compensation
         if self.time_index > self.window_size_steps:
             attractor_change_rate = np.linalg.norm(np.array(list(self.data['recorded_pose'][self.time_index].pose.position)) - np.array(list(self.data['recorded_pose'][max(0, self.time_index-self.window_size_steps)].pose.position)))
         else:
             attractor_change_rate = 1
-        if attractor_change_rate < 5e-4 and self.time_index % np.floor(self.control_rate/self.compensation_rate) == 0:
+        if attractor_change_rate < 5e-4 and self.time_index % np.floor(self.control_rate/self.compensation_rate) == 0 and self.data['recorded_compensation_flag'][self.time_index]:
             curr_pose = deepcopy(self.robot.curr_pose)
             rospy.loginfo("Compensating")
             goal_pose = deepcopy(transform_pose(self.data['recorded_pose'][self.time_index], self.total_transform))
@@ -212,8 +217,9 @@ class LfD():
             pose_curr_pose_2_goal = transformation_2_pose(transform_curr_pose_2_goal)
             self.pose_curr_2_goal_pub.publish(pose_curr_pose_2_goal)
             self.compensation_transform = transform_curr_pose_2_goal @ self.compensation_transform
-        elif attractor_change_rate > 5e-4:
-            self.compensation_transform = np.eye(4)
+            # self.compensation_transform[:3,3]=0
+        # elif attractor_change_rate > 5e-4:
+        #     self.compensation_transform = np.eye(4)
 
 
 

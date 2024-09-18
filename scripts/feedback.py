@@ -16,6 +16,8 @@ class Feedback():
         self.spiral_feedback_correction = False
         self.stiff_rotation = False
         self.img_feedback_flag = False
+        self.compensation_flag = False
+        self.compensation_feedback_flag = False
         self.gripper_closed = False
         self.blocked = False
         self.pressed = False
@@ -33,17 +35,17 @@ class Feedback():
 
 
     def human_feedback(self, data: dict, time_index: int):
-        if self.speed_up:
-            self.faster_counter = 10
+        # if self.speed_up:
+        #     self.faster_counter = 10
             
-        if self.faster_counter > 0 and time_index != len(data['recorded_pose'])-1:
-            self.faster_counter -= 1
+        # if self.faster_counter > 0 and time_index != len(data['recorded_pose'])-1:
+        #     self.faster_counter -= 1
 
-            data['recorded_pose'].pop(time_index+1)
-            data['recorded_gripper'].pop(time_index+1)
-            data['recorded_img'].pop(time_index+1)
-            data['recorded_img_feedback_flag'].pop(time_index+1)
-            data['recorded_spiral_flag'].pop(time_index+1)
+        #     data['recorded_pose'].pop(time_index+1)
+        #     data['recorded_gripper'].pop(time_index+1)
+        #     data['recorded_img'].pop(time_index+1)
+        #     data['recorded_img_feedback_flag'].pop(time_index+1)
+        #     data['recorded_spiral_flag'].pop(time_index+1)
 
         if self.img_feedback_correction:
             print("hi")
