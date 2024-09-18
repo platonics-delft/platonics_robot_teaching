@@ -73,8 +73,14 @@ class FeedbackButtons(Feedback):
                 if event[read_events[i]] == True and not self.blocked:
                     self.blocked = True
                     self.pressed=True
-                    print("Speed up")
-                    self.speed_up = True
+                    if self.compensation_flag:
+                        print("Compensation disabled")
+                        self.compensation_flag = False
+                        self.compensation_feedback_correction = True
+                    else:
+                        print("Compensation enabled")
+                        self.compensation_flag = True
+                        self.compensation_feedback_correction = True
                 elif event[read_events[i]] == False:
                     self.blocked = False
 
