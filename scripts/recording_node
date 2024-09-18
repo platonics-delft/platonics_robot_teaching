@@ -7,6 +7,7 @@ from panda_ros import Panda
 from cv_bridge import CvBridgeError, CvBridge
 import rospkg
 import pickle
+import cv2
 class Recorder:
     def __init__(self):
         rospy.init_node("recording_node")
@@ -51,15 +52,22 @@ class Recorder:
         self.data  = {
             'pose': self.recorded_pose,
             'goal': self.recorded_goal,
-            'img': self.recorded_img,
+            #'img': self.recorded_img,
             'joint': self.recorded_joint, 
             'wrench': self.recorded_wrench
         }
-        print("Saving data")
         ros_pack = rospkg.RosPack()
         self._package_path = ros_pack.get_path('trajectory_data')
         with open(self._package_path + '/recorded_trials/' + str(file) + '.pkl', 'wb') as f:
             pickle.dump(self.data, f)
+
+        # save images in folder
+        for i, img in enumerate(self.recorded_img):
+            cv2.imwrite(self._package_path + '/recorded_trials/' + str(file) + '_img_' + str(i) + '.jpg',
+
+
+
+
         print("Data rollout saved")
 
     def run(self):
@@ -69,8 +77,7 @@ class Recorder:
                 self.recorded_goal.append(self.robot.goal_pose)
 
 
-                #self.recorded_img.append(self.curr_image)
-                self.recorded_img.append(None)
+                self.recorded_img.append(self.curr_image)
                 self.recorded_joint.append(self.robot.curr_joint) 
                 self.recorded_wrench.append(self.robot.curr_wrench)
             self._rate.sleep()

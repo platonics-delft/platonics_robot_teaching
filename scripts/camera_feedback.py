@@ -1,14 +1,10 @@
 import numpy as np
 import cv2
-from visualization_msgs.msg import Marker
-from geometry_msgs.msg import Point
 from sensor_msgs.msg import CameraInfo
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import CompressedImage, Image
 import rospy
-from geometry_msgs.msg import PoseStamped
 from cv_bridge import CvBridgeError, CvBridge
 import tf
-from dynamic_reconfigure.msg import Config
 from dynamic_reconfigure.client import Client
 def image_process(image, ds_factor, row_crop_top, row_crop_bottom, col_crop_left, col_crop_right):
     h, w = image.shape[:2]
@@ -53,7 +49,7 @@ class Camera():
         self.camera_param_sub=rospy.Subscriber("/camera/color/camera_info", CameraInfo, self.camera_info_callback)
         self.client = Client("/camera/stereo_module", timeout=30)
 
-        self.current_template_pub = rospy.Publisher('/SIFT_corrections', Image, queue_size=0)
+        self.current_template_pub = rospy.Publisher('/SIFT_corrections', CompressedImage, queue_size=0)
 
         self.image_sub = rospy.Subscriber('/camera/color/image_raw', Image, self.image_callback)
 
@@ -169,7 +165,11 @@ class Camera():
                 col_idx_end = int(w * 1)
                 padded_template[row_idx_start:row_idx_end, col_idx_start:col_idx_end] = target_img
                 self._annoted_image = cv2.drawMatches(padded_template, kp1, self.curr_image, kp2, good_feature, None, **draw_params)
-                recorded_image_msg = self.bridge.cv2_to_imgmsg(self._annoted_image)
+                compressed_image = cv2.imencode('.jpg', self._annoted_image)[1].tostring()
+                recorded_image_msg = CompressedImage()
+                recorded_image_msg.format = "jpeg"
+                recorded_image_msg.data = compressed_image
+                #recorded_image_msg = self.bridge.cv2_to_imgmsg(self._annoted_image)
                 self.current_template_pub.publish(recorded_image_msg)  
             except Exception as e:
                 print(e)
