@@ -2,8 +2,9 @@
 import rospy
 from datetime import datetime
 from std_msgs.msg import Bool
+from sensor_msgs.msg import CompressedImage
 from panda_ros import Panda
-from camera_feedback import Camera
+from cv_bridge import CvBridgeError, CvBridge
 import rospkg
 import pickle
 class Recorder:
@@ -11,11 +12,18 @@ class Recorder:
         rospy.init_node("recording_node")
         self._rate = rospy.Rate(20)
         self.recording = False
+        self._cv_bridge = CvBridge()
 
         rospy.Subscriber("/recording", Bool, self.recording_callback)
+        self.image_sub = rospy.Subscriber('/camera/color/image_raw/compressed', CompressedImage, self.image_callback)
 
-        self.camera = Camera()
         self.robot= Panda()
+
+    def image_callback(self, msg: CompressedImage):
+        try:
+            self.curr_image = self._cv_bridge.compressed_imgmsg_to_cv2(msg)
+        except CvBridgeError as e:
+            print(e)
 
     def recording_callback(self, data: Bool):
         if data.data:
@@ -61,7 +69,7 @@ class Recorder:
                 self.recorded_goal.append(self.robot.goal_pose)
 
 
-                #self.recorded_img.append(self.camera.curr_image)
+                #self.recorded_img.append(self.curr_image)
                 self.recorded_img.append(None)
                 self.recorded_joint.append(self.robot.curr_joint) 
                 self.recorded_wrench.append(self.robot.curr_wrench)
