@@ -105,7 +105,7 @@ class LfD():
         goal = self.robot.curr_pose
         goal.header = Header(seq=1, stamp=rospy.Time.now(), frame_id="map")
         self.robot.goal_pub.publish(goal)
-        self.robot.set_stiffness(3000, 3000, 3000, 40, 40, 40, 0)
+        self.set_stiffness_execution()
         rospy.loginfo("Ending trajectory recording")
         self.data = {
             'recorded_pose': self.recorded_pose,
@@ -132,7 +132,7 @@ class LfD():
         if self.buttons.change_in_stiff_rotation:
             if self.buttons.stiff_rotation:
                 self.robot.goal_pub.publish(self.robot.curr_pose)
-                self.robot.set_stiffness(0, 0,0, 30, 30, 30, 0)
+                self.robot.set_stiffness(0, 0, 0, 50, 50, 50, 0)
             else:
                 self.robot.set_stiffness(0, 0, 0, 0, 0, 0, 0)
             self.buttons.change_in_stiff_rotation=False
@@ -159,6 +159,15 @@ class LfD():
                 break
         self.execute_end()
 
+    def set_stiffness_spiral(self):
+        self.robot.set_stiffness(2000, 2000, 1000, 50, 50, 50, 0)
+
+    def set_stiffness_execution(self):
+        self.robot.set_stiffness(2000, 2000, 2000, 50, 50, 50, 0)
+
+    def set_stiffness_safe(self):
+        self.robot.set_stiffness(self.robot.K_pos_safe, self.robot.K_pos_safe, self.robot.K_pos_safe, self.robot.K_ori_safe, self.robot.K_ori_safe, self.robot.K_ori_safe, 0)
+
     def execute_start(self):
         self.buttons.start_listening()
 
@@ -170,7 +179,7 @@ class LfD():
         self.servoing_transform = np.eye(4)
         self.spiral_transform = np.eye(4)
         self.robot.go_to_pose_ik(transform_pose(self.data['recorded_pose'][0],self.total_transform)) 
-        self.robot.set_stiffness(3000, 3000, 3000, 40, 40, 40, 0)
+        self.set_stiffness_execution()
         self.robot.set_K.update_configuration({"max_delta_lin": 0.05})
         self.robot.set_K.update_configuration({"max_delta_ori": 0.50}) 
         self.robot.set_K.update_configuration({"joint_default_damping": 0.00})
@@ -247,10 +256,10 @@ class LfD():
         if self.robot.safety_check: self.time_index += 1
         if self.robot.change_in_safety_check:
             if self.robot.safety_check:
-                    self.robot.set_stiffness(self.robot.K_pos, self.robot.K_pos, self.robot.K_pos, self.robot.K_ori, self.robot.K_ori, self.robot.K_ori, 0)
+                self.set_stiffness_execution()
             else:
                 # print("Safety violation detected. Making the robot compliant")
-                self.robot.set_stiffness(self.robot.K_pos_safe, self.robot.K_pos_safe, self.robot.K_pos_safe, self.robot.K_ori_safe, self.robot.K_ori_safe, self.robot.K_ori_safe, 0)
+                self.set_stiffness_safe()
         ### Publish the goal pose
         self.time_index = min(self.time_index, len(self.data['recorded_pose'])-1)
         goal_pose = self.data['recorded_pose'][self.time_index]
@@ -284,7 +293,7 @@ class LfD():
 
     def abort(self):
         self.robot.stop_gripper()
-        self.robot.set_stiffness(600, 600, 600, 10, 10, 10, 0)
+        self.set_stiffness_safe()
 
 
 
@@ -306,7 +315,7 @@ class LfD():
         goal_start = deepcopy(goal_pose)
         goal_final = deepcopy(goal_pose)
         time= 0 
-        self.robot.set_stiffness(4000, 4000, 1000, 30, 30, 30, 0) # get more compliant in z direction
+        self.set_stiffness_spiral()
         for _ in range(max_spiral_time * self.control_rate):   
             if self.buttons.end:
                 break
@@ -319,7 +328,7 @@ class LfD():
                 break
             time += dt
             self.rate.sleep()
-        self.robot.set_stiffness(4000, 4000, 4000, 30, 30, 30, 0)    
+        self.set_stiffness_execution()
         trasform = transform_between_poses(goal_final, goal_start ) 
 
         return trasform

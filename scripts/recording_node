@@ -61,14 +61,6 @@ class Recorder:
         with open(self._package_path + '/recorded_trials/' + str(file) + '.pkl', 'wb') as f:
             pickle.dump(self.data, f)
 
-        # save images in folder
-        for i, img in enumerate(self.recorded_img):
-            cv2.imwrite(self._package_path + '/recorded_trials/' + str(file) + '_img_' + str(i) + '.jpg',
-
-
-
-
-        print("Data rollout saved")
 
     def run(self):
         while not rospy.is_shutdown():

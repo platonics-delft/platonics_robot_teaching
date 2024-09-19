@@ -43,13 +43,14 @@ class Camera():
         self.num_good_matches_threshold = 4
         self.pixel_diance_threshold = 20
         self.lowe_ratio = 0.7
-        self.correction_increment = 0.0005
+        self.correction_increment = 0.0015
         self.starting = False
         self.old_exposure= 0
         self.camera_param_sub=rospy.Subscriber("/camera/color/camera_info", CameraInfo, self.camera_info_callback)
         self.client = Client("/camera/stereo_module", timeout=30)
 
-        self.current_template_pub = rospy.Publisher('/SIFT_corrections', CompressedImage, queue_size=0)
+        self.current_template_pub_compressed = rospy.Publisher('/SIFT_corrections_compressed', CompressedImage, queue_size=0)
+        self.current_template_pub_raw = rospy.Publisher('/SIFT_corrections', Image, queue_size=0)
 
         self.image_sub = rospy.Subscriber('/camera/color/image_raw', Image, self.image_callback)
 
@@ -165,12 +166,13 @@ class Camera():
                 col_idx_end = int(w * 1)
                 padded_template[row_idx_start:row_idx_end, col_idx_start:col_idx_end] = target_img
                 self._annoted_image = cv2.drawMatches(padded_template, kp1, self.curr_image, kp2, good_feature, None, **draw_params)
-                compressed_image = cv2.imencode('.jpg', self._annoted_image)[1].tostring()
+                compressed_image = np.array(cv2.imencode('.jpg', self._annoted_image)[1]).tostring()
                 recorded_image_msg = CompressedImage()
                 recorded_image_msg.format = "jpeg"
                 recorded_image_msg.data = compressed_image
-                #recorded_image_msg = self.bridge.cv2_to_imgmsg(self._annoted_image)
-                self.current_template_pub.publish(recorded_image_msg)  
+                recorded_image_msg_raw = self.bridge.cv2_to_imgmsg(self._annoted_image)
+                self.current_template_pub_compressed.publish(recorded_image_msg)  
+                self.current_template_pub_raw.publish(recorded_image_msg_raw)
             except Exception as e:
                 print(e)
 
