@@ -98,6 +98,7 @@ class LfDServer():
                         self._execute_skill_server.set_succeeded(result)
                         return
                     self._lfd.rate.sleep()
+        result.success = True
         self._execute_skill_server.set_succeeded(result)
 
 
