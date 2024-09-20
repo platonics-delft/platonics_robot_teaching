@@ -24,8 +24,8 @@ add_action_files(
   FILES
   LfdHome.action
   LfdRecord.action
-  LfdExecute.action
   LfdExecuteSequence.action
+  LfdExecuteSkill.action
   AbortGripper.action
 )
 

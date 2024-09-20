@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 import rospy
+import rospkg
 import actionlib
 from lfd import LfD
+import yaml
 
 from skills_manager.msg import LfdRecordAction, LfdRecordGoal, LfdRecordResult, LfdRecordFeedback
-from skills_manager.msg import LfdExecuteAction, LfdExecuteGoal, LfdExecuteResult, LfdExecuteFeedback
+from skills_manager.msg import LfdExecuteSkillAction, LfdExecuteSkillGoal, LfdExecuteSkillResult, LfdExecuteSkillFeedback
+from platonics_vision.msg import SolveSliderGoal, SolveSliderAction
 from skills_manager.msg import LfdExecuteSequenceAction, LfdExecuteSequenceGoal, LfdExecuteSequenceResult, LfdExecuteSequenceFeedback
 from skills_manager.msg import LfdHomeAction, LfdHomeGoal, LfdHomeResult, LfdHomeFeedback
 from skills_manager.msg import AbortGripperAction, AbortGripperGoal, AbortGripperResult, AbortGripperFeedback
@@ -25,14 +28,14 @@ class LfDServer():
             'lfdRecord', LfdRecordAction, self.execute_record, auto_start=False
         )
         self._record_action_server.start()
-        self._execute_action_server = actionlib.SimpleActionServer(
-            'lfdExecute', LfdExecuteAction, self.execute_execute, auto_start=False
-        )
-        self._execute_action_server.start()
         self._execute_sequence_action_server = actionlib.SimpleActionServer(
             'lfdExecuteSequence', LfdExecuteSequenceAction, self.execute_execute_sequence, auto_start=False
         )
         self._execute_sequence_action_server.start()
+        self._execute_skill_server = actionlib.SimpleActionServer(
+            'lfdExecuteSkill', LfdExecuteSkillAction, self.execute_skill, auto_start=False
+        )
+        self._execute_skill_server.start()
         self._home_action_server = actionlib.SimpleActionServer(
             'lfdHome', LfdHomeAction, self.execute_home, auto_start=False
         )
@@ -45,6 +48,48 @@ class LfDServer():
             'abort_gripper', AbortGripperAction, self.execute_open_gripper, auto_start=False
         )
         self._open_gripper_action_server.start()
+        self._execute_sequence_action_client = actionlib.SimpleActionClient('lfdExecuteSequence', LfdExecuteSequenceAction)
+        self._solve_slider_client = actionlib.SimpleActionClient('solveSlider', SolveSliderAction)
+
+    def execute_skill(self, goal: LfdExecuteSkillGoal):
+        skill_file = rospkg.RosPack().get_path('trajectory_data') + '/skills/' + goal.skill_name + ".yaml"
+        skill_config = yaml.safe_load(open(skill_file))
+        result = LfdExecuteSkillResult()
+        if goal.localize_box:
+            request = IterativeRegistrationLocalizerRequest()
+            request.steps.data = 5
+            request.template_file_name = goal.template_file_name
+            resp: IterativeRegistrationLocalizerResponse = self.iterative_localizer(request)
+            self._lfd.localization_transform = pose_2_transformation(resp.pose)
+        for action, action_config in skill_config.items():
+            if action_config['action_name'] == 'lfdExecuteSequence':
+                goal = LfdExecuteSequenceGoal()
+                goal.skill_names = action_config['skill_names']
+                self._execute_sequence_action_client.send_goal(goal)
+                while not self._execute_sequence_action_client.get_result():
+                    if self._execute_skill_server.is_preempt_requested():
+                        self._execute_sequence_action_client.cancel_all_goals()
+                        self._execute_skill_server.set_preempted()
+                        result.success = False
+                        self._execute_skill_server.set_succeeded(result)
+                        return
+                    self._lfd.rate.sleep()
+            if action_config['action_name'] == 'solveSlider':
+                goal = LfdExecuteSequenceGoal()
+                goal = SolveSliderGoal()
+                goal.task_stage = action_config['task_stage']
+                self._solve_slider_client.send_goal(goal)
+                while not self._solve_slider_client.get_result():
+                    if self._execute_skill_server.is_preempt_requested():
+                        self._solve_slider_client.cancel_all_goals()
+                        self._execute_skill_server.set_preempted()
+                        result.success = False
+                        self._execute_skill_server.set_succeeded(result)
+                        return
+                    self._lfd.rate.sleep()
+        self._execute_skill_server.set_succeeded(result)
+
+
 
 
 
@@ -59,25 +104,6 @@ class LfDServer():
         result = AbortGripperResult()
         result.success = True
         self._open_gripper_action_server.set_succeeded(result)
-
-    def execute_execute(self, goal: LfdExecuteGoal):
-        rospy.loginfo("Received request")
-        if goal.localize_box:
-            request = IterativeRegistrationLocalizerRequest()
-            request.steps.data = 1
-            request.template_file_name = goal.template_file_name
-            resp: IterativeRegistrationLocalizerResponse = self.iterative_localizer(request)
-            self._lfd.localization_transform = pose_2_transformation(resp.pose)
-        self._lfd.buttons.start_listening()
-        self._lfd.buttons.start_listening()
-        self._lfd.load(goal.skill_name)
-        self._lfd.execute()
-        self._lfd.save(goal.skill_name)
-        self._lfd.buttons.stop_listening()
-        result = LfdExecuteResult()
-        result.success = True
-        self._execute_action_server.set_succeeded(result)
-
 
     def execute_execute_sequence(self, goal: LfdExecuteSequenceGoal):
         rospy.loginfo("Received request")
