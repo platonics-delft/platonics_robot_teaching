@@ -63,7 +63,7 @@ class LfDServer():
         self._lfd.robot.grasp_command.goal.force = msg.data[2]
 
     def execute_skill(self, goal: LfdExecuteSkillGoal):
-        skill_file = rospkg.RosPack().get_path('platonics_dataset') + '/skills/' + goal.skill_name + ".yaml"
+        skill_file = rospkg.RosPack().get_path('platonics_dataset') + '/trajectories/' + goal.template_name + '/' + goal.skill_name + ".yaml"
         skill_config = yaml.safe_load(open(skill_file))
         result = LfdExecuteSkillResult()
         if goal.localize_box:
