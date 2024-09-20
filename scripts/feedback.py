@@ -17,7 +17,7 @@ class Feedback():
         self.stiff_rotation = False
         self.img_feedback_flag = False
         self.compensation_flag = False
-        self.compensation_feedback_flag = False
+        self.compensation_feedback_correction = False
         self.gripper_closed = False
         self.blocked = False
         self.pressed = False
@@ -48,9 +48,12 @@ class Feedback():
         #     data['recorded_spiral_flag'].pop(time_index+1)
 
         if self.img_feedback_correction:
-            print("hi")
-            print(self.img_feedback_flag)
+            # print("hi")
+            # print(self.img_feedback_flag)
             data['recorded_img_feedback_flag'][time_index:] = [self.img_feedback_flag] * len(data['recorded_img_feedback_flag'][time_index:])
+
+        if self.compensation_feedback_correction :
+            data['recorded_compensation_flag'][time_index:] = [self.compensation_flag] * len(data['recorded_compensation_flag'][time_index:])
 
 
         if self.spiral_feedback_correction:
@@ -75,6 +78,7 @@ class Feedback():
         self.speed_up = False                
         self.img_feedback_correction = False
         self.spiral_feedback_correction = False
+        self.compensation_feedback_correction = False
 
         return data 
     

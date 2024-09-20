@@ -5,6 +5,7 @@ import actionlib
 from lfd import LfD
 import yaml
 from std_msgs.msg import Float32MultiArray, String
+import numpy as np
 
 from skills_manager.msg import LfdRecordAction, LfdRecordGoal, LfdRecordResult, LfdRecordFeedback
 from skills_manager.msg import LfdExecuteSkillAction, LfdExecuteSkillGoal, LfdExecuteSkillResult, LfdExecuteSkillFeedback
@@ -16,7 +17,7 @@ from skills_manager.srv import ListTrajectories, ListTrajectoriesRequest, ListTr
 from platonics_vision.srv import IterativeRegistrationLocalizer, IterativeRegistrationLocalizerRequest, IterativeRegistrationLocalizerResponse
 
 from panda_ros.pose_transform_functions import pose_2_transformation
-
+from geometry_msgs.msg import PoseStamped
 
 class LfDServer():
     def __init__(self):
@@ -135,7 +136,7 @@ class LfDServer():
         template_name = goal.template_name
         if goal.localize_box:
             request = IterativeRegistrationLocalizerRequest()
-            request.steps.data = 5
+            request.steps.data = 3
             request.template_file_name.data = goal.template_name
             resp: IterativeRegistrationLocalizerResponse = self.iterative_localizer(request)
             self._lfd.localization_transform = pose_2_transformation(resp.pose)
@@ -203,6 +204,8 @@ class LfDServer():
             front_offset=goal.front,
             side_offset=goal.side,
         )
+        new_goal_pose = self.new_ee_pose_camera_plane(self._lfd.robot.goal_pose)
+        self._lfd.robot.goal_pub.publish(new_goal_pose)
         self._lfd.robot.offset_compensator(10)
         result = LfdHomeResult()
         result.success = True
@@ -211,6 +214,22 @@ class LfDServer():
     def run(self):
         while not rospy.is_shutdown():
             self._lfd.rate.sleep()
+
+    def new_ee_pose_camera_plane(self, curr_pose):
+        orientation = rospy.get_param("/camera_transform/rotation", {})
+        curr_ori_quaternion = np.quaternion(self._lfd.robot.curr_ori[0], self._lfd.robot.curr_ori[1], self._lfd.robot.curr_ori[2], self._lfd.robot.curr_ori[3])
+        hand_optical_quaternion = np.quaternion(orientation['w'], orientation['x'], orientation['y'], orientation['z'])
+        world_optical_quaternion_desired = np.quaternion(0.0, np.sqrt(0.5), -np.sqrt(0.5), 0.0)
+        new_goal_quaternion = world_optical_quaternion_desired * (curr_ori_quaternion * hand_optical_quaternion).inverse() * curr_ori_quaternion
+        new_goal_pose = PoseStamped()
+        new_goal_pose.pose.position.x = curr_pose.pose.position.x
+        new_goal_pose.pose.position.y = curr_pose.pose.position.y
+        new_goal_pose.pose.position.z = curr_pose.pose.position.z
+        new_goal_pose.pose.orientation.w = new_goal_quaternion.w
+        new_goal_pose.pose.orientation.x = new_goal_quaternion.x
+        new_goal_pose.pose.orientation.y = new_goal_quaternion.y
+        new_goal_pose.pose.orientation.z = new_goal_quaternion.z
+        return new_goal_pose
 
 if __name__ == "__main__":
     node = LfDServer()
