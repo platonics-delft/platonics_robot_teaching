@@ -1,6 +1,6 @@
 string skill_name
 bool localize_box
-std_msgs/String template_name
+string template_name
 ---
 bool success
 ---

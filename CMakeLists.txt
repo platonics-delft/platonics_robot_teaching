@@ -17,6 +17,8 @@ catkin_python_setup()
 add_service_files(
   FILES
   ListTrajectories.srv
+  ListTemplates.srv
+  ListSkills.srv
 )
 
 add_action_files(
