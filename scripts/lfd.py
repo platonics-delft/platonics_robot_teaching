@@ -64,7 +64,11 @@ class LfD():
 
         rospy.sleep(1)
 
-    def init_record(self, trigger):
+    def init_record(self, trigger, template_name: str):
+        ros_pack = rospkg.RosPack()
+        self._package_path = ros_pack.get_path('platonics_dataset')
+        if not os.path.exists(self._package_path + '/trajectories/' + template_name):
+            return False
         self.buttons.start_listening()
         init_pos = self.robot.curr_pos
         perturbation = 0 
@@ -93,6 +97,7 @@ class LfD():
         print("Recording started. Press Esc to stop.")
 
         self.buttons.end = False
+        return True
 
     def kinesthetic_teaching(self, trigger=0.005):
         self.init_record(trigger=trigger)
@@ -333,35 +338,36 @@ class LfD():
 
         return trasform
 
-    def list_all_available_trajectories(self) -> List[str]:
+    def list_all_available_trajectories(self, template_name: str) -> List[str]:
         """List all available trajectories in the package
 
-        All valid trajectories are stored in trajectory_data/trajectories folder
+        All valid trajectories are stored in
+        platonics_dataset/trajectories/<template> folder
         with the ending pkl. This function lists all the available trajectories
 
         """
         # Alll files in trajoctory data ending with pkl
         ros_pack = rospkg.RosPack()
-        self._package_path = ros_pack.get_path('trajectory_data')
-        files = os.listdir(self._package_path + '/trajectories')
+        self._package_path = ros_pack.get_path('platonics_dataset')
+        files = os.listdir(self._package_path + '/trajectories/' + template_name)
         trajectories = [f.split('.')[0] for f in files if f.endswith('.pkl')]
         return trajectories
 
 
 
 
-    def save(self, file='last'):
+    def save(self, file : str, template_name : str):
         print("Saving trajectory")
         ros_pack = rospkg.RosPack()
-        self._package_path = ros_pack.get_path('trajectory_data')
-        with open(self._package_path + '/trajectories/' + str(file) + '.pkl', 'wb') as f:
+        self._package_path = ros_pack.get_path('platonics_dataset')
+        with open(self._package_path + '/trajectories/' + template_name + '/' + file + '.pkl', 'wb') as f:
             pickle.dump(self.data, f)
         print("Trajectory saved")
         
-    def load(self, file='last'):
+    def load(self, file : str, template_name: str):
         ros_pack = rospkg.RosPack()
-        self._package_path = ros_pack.get_path('trajectory_data')
-        with open(self._package_path + '/trajectories/' + str(file) + '.pkl', 'rb') as f:
+        self._package_path = ros_pack.get_path('platonics_dataset')
+        with open(self._package_path + '/trajectories/' + template_name + '/' + file + '.pkl', 'rb') as f:
             data = pickle.load(f)
         self.data = data
 

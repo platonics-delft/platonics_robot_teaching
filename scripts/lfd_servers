@@ -4,6 +4,7 @@ import rospkg
 import actionlib
 from lfd import LfD
 import yaml
+from std_msgs.msg import String
 
 from skills_manager.msg import LfdRecordAction, LfdRecordGoal, LfdRecordResult, LfdRecordFeedback
 from skills_manager.msg import LfdExecuteSkillAction, LfdExecuteSkillGoal, LfdExecuteSkillResult, LfdExecuteSkillFeedback
@@ -50,15 +51,16 @@ class LfDServer():
         self._open_gripper_action_server.start()
         self._execute_sequence_action_client = actionlib.SimpleActionClient('lfdExecuteSequence', LfdExecuteSequenceAction)
         self._solve_slider_client = actionlib.SimpleActionClient('solveSlider', SolveSliderAction)
+        self._debug_publisher = rospy.Publisher('/debug', String, queue_size=10)
 
     def execute_skill(self, goal: LfdExecuteSkillGoal):
-        skill_file = rospkg.RosPack().get_path('trajectory_data') + '/skills/' + goal.skill_name + ".yaml"
+        skill_file = rospkg.RosPack().get_path('platonics_dataset') + '/skills/' + goal.skill_name + ".yaml"
         skill_config = yaml.safe_load(open(skill_file))
         result = LfdExecuteSkillResult()
         if goal.localize_box:
             request = IterativeRegistrationLocalizerRequest()
             request.steps.data = 5
-            request.template_file_name = goal.template_file_name
+            request.template_file_name = goal.template_name
             resp: IterativeRegistrationLocalizerResponse = self.iterative_localizer(request)
             self._lfd.localization_transform = pose_2_transformation(resp.pose)
         for action, action_config in skill_config.items():
@@ -95,7 +97,7 @@ class LfDServer():
 
     def handle_list_trajectories(self, request: ListTrajectoriesRequest):
         response = ListTrajectoriesResponse()
-        response.trajectories = self._lfd.list_all_available_trajectories()
+        response.trajectories = self._lfd.list_all_available_trajectories(request.template_name)
         return response
 
     def execute_open_gripper(self, goal: AbortGripperGoal):
@@ -113,7 +115,7 @@ class LfDServer():
         if goal.localize_box:
             request = IterativeRegistrationLocalizerRequest()
             request.steps.data = 5
-            request.template_file_name = goal.template_file_name
+            request.template_file_name = goal.template_name
             resp: IterativeRegistrationLocalizerResponse = self.iterative_localizer(request)
             self._lfd.localization_transform = pose_2_transformation(resp.pose)
         aborting = False
@@ -141,15 +143,24 @@ class LfDServer():
                 feedback.waypoint_index = self._lfd.time_index
                 self._execute_sequence_action_server.publish_feedback(feedback)
             self._lfd.execute_end()
-            self._lfd.save(skill_name)
+            self._lfd.save(skill_name, goal.template_name)
         if result.success:
             self._execute_sequence_action_server.set_succeeded(result)
         if aborting:
             self._lfd.abort()
 
+    def debug(self, text: str):
+        msg = String(data=text)
+        self._debug_publisher.publish(msg)
+
 
     def execute_record(self, goal: LfdRecordGoal):
-        self._lfd.init_record(trigger=0.005)
+        result = LfdRecordResult()
+        if not self._lfd.init_record(0.005, goal.template_name):
+            result.success = False
+            self.debug(f"Template {goal.template_name} not found")
+            self._record_action_server.set_succeeded(result)
+            return
         feedback = LfdRecordFeedback()
         while not self._lfd.buttons.end:
             self._lfd.record_step()
@@ -161,8 +172,7 @@ class LfDServer():
             feedback.gripper = self._lfd.gripper_state
             self._record_action_server.publish_feedback(feedback)
         self._lfd.end_record()
-        self._lfd.save(goal.skill_name)
-        result = LfdRecordResult()
+        self._lfd.save(goal.skill_name, goal.template_name)
         result.success = True
         self._record_action_server.set_succeeded(result)
 
