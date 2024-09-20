@@ -74,9 +74,10 @@ class LfDServer():
             self._lfd.localization_transform = pose_2_transformation(resp.pose)
         for action, action_config in skill_config.items():
             if action_config['action_name'] == 'lfdExecuteSequence':
-                goal = LfdExecuteSequenceGoal()
-                goal.skill_names = action_config['skill_names']
-                self._execute_sequence_action_client.send_goal(goal)
+                goal_sequence = LfdExecuteSequenceGoal()
+                goal_sequence.skill_names = action_config['skill_names']
+                goal_sequence.template_name = goal.template_name
+                self._execute_sequence_action_client.send_goal(goal_sequence)
                 while not self._execute_sequence_action_client.get_result():
                     if self._execute_skill_server.is_preempt_requested():
                         self._execute_sequence_action_client.cancel_all_goals()
@@ -86,10 +87,9 @@ class LfDServer():
                         return
                     self._lfd.rate.sleep()
             if action_config['action_name'] == 'solveSlider':
-                goal = LfdExecuteSequenceGoal()
-                goal = SolveSliderGoal()
-                goal.task_stage = action_config['task_stage']
-                self._solve_slider_client.send_goal(goal)
+                goal_skill = SolveSliderGoal()
+                goal_skill.task_stage = action_config['task_stage']
+                self._solve_slider_client.send_goal(goal_skill)
                 while not self._solve_slider_client.get_result():
                     if self._execute_skill_server.is_preempt_requested():
                         self._solve_slider_client.cancel_all_goals()
