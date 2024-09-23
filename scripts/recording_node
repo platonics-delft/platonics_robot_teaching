@@ -57,8 +57,8 @@ class Recorder:
             'wrench': self.recorded_wrench
         }
         ros_pack = rospkg.RosPack()
-        self._package_path = ros_pack.get_path('trajectory_data')
-        with open(self._package_path + '/recorded_trials/' + str(file) + '.pkl', 'wb') as f:
+        self._package_path = ros_pack.get_path('platonics_dataset')
+        with open(self._package_path + '/execution_data/' + str(file) + '.pkl', 'wb') as f:
             pickle.dump(self.data, f)
 
 

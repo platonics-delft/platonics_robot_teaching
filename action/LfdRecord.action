@@ -1,4 +1,5 @@
 string skill_name
+string template_name
 ---
 bool success
 ---
