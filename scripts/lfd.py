@@ -117,7 +117,12 @@ class LfD():
         }
 
     def record_step(self):
-        if self.buttons.pause:
+    
+        if self.buttons.pressed:
+            self.buttons.pressed=False
+            self.robot.vibrate(0.2)
+            
+        if self.buttons.pause and not(self.buttons.end):
             self.rate.sleep()
             return
         poses=  interpolate_poses(self.recorded_pose[-1],self.robot.curr_pose, self.safe_distance_lin, self.safe_distance_ori)[1:]
@@ -144,9 +149,7 @@ class LfD():
         self.recorded_spiral_flag.extend([self.buttons.spiral_flag]*len(poses))
         self.recorded_compensation_flag.extend([self.buttons.compensation_flag]*len(poses))
 
-        if self.buttons.pressed:
-            self.buttons.pressed=False
-            self.robot.vibrate(0.2)
+
         self.rate.sleep()
 
 
@@ -218,7 +221,7 @@ class LfD():
             attractor_change_rate = np.linalg.norm(np.array(list(self.data['recorded_pose'][self.time_index].pose.position)) - np.array(list(self.data['recorded_pose'][max(0, self.time_index-self.window_size_steps)].pose.position)))
         else:
             attractor_change_rate = 1
-        if attractor_change_rate < 5e-4 and self.time_index % np.floor(self.control_rate/self.compensation_rate) == 0 and self.data['recorded_compensation_flag'][self.time_index]:
+        if attractor_change_rate < 5e-3 and self.time_index % np.floor(self.control_rate/self.compensation_rate) == 0 and self.data['recorded_compensation_flag'][self.time_index]:
             curr_pose = deepcopy(self.robot.curr_pose)
             rospy.loginfo("Compensating")
             goal_pose = deepcopy(transform_pose(self.data['recorded_pose'][self.time_index], self.total_transform))
@@ -229,16 +232,15 @@ class LfD():
             # self.compensation_transform[:3,3]=0
         # elif attractor_change_rate > 5e-4:
         #     self.compensation_transform = np.eye(4)
-
-
-
+        else:
+            self.compensation_transform = np.eye(4)
         ### Perform camera corrections
         if self.data['recorded_img_feedback_flag'][self.time_index] and not self.camera.starting and (camera_delay * self.control_rate) < self.acceptable_camera_delay_steps and self.time_index % np.floor(self.control_rate/self.camera._rate) == 0:
             self.servoing_transform=self.camera.sift_matching(target_img=self.data['recorded_img'][self.time_index])
             self.total_transform = self.servoing_transform @ self.total_transform
         
         ### Perform spiral search
-        if self.data['recorded_spiral_flag'][self.time_index]:
+        if self.data['recorded_spiral_flag'][self.time_index] and not(self.buttons.pressed):
             if self.robot.force.z > self.insertion_force_threshold:
                 self.spiral_transform = self.spiral_search(self.robot.goal_pose) #goal_pose)
                 self.total_transform = self.spiral_transform @ self.total_transform
