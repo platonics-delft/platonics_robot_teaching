@@ -349,6 +349,38 @@ class LfD():
         trajectories = [f.split('.')[0] for f in files if f.endswith('.pkl')]
         return trajectories
 
+    def list_all_available_skills(self, template_name: str) -> List[str]:
+        """List all available skills in the package
+
+        All valid trajectories are stored in
+        platonics_dataset/trajectories/<template> folder
+        with the ending pkl. This function lists all the available trajectories
+
+        """
+        # Alll files in trajoctory data ending with pkl
+        ros_pack = rospkg.RosPack()
+        self._package_path = ros_pack.get_path('platonics_dataset')
+        files = os.listdir(self._package_path + '/trajectories/' + template_name)
+        trajectories = [f.split('.')[0] for f in files if f.endswith('.yaml')]
+        return trajectories
+
+    def list_all_available_templates(self) -> List[str]:
+        """List all available templates in the package
+
+        All valid templates are stored in
+        platonics_dataset/trajectories folder
+        with the ending yaml. This function lists all the available templates
+
+        """
+        # Alll files in trajoctory data ending with pkl
+        ros_pack = rospkg.RosPack()
+        self._package_path = ros_pack.get_path('platonics_dataset')
+        template_folders = os.listdir(self._package_path + '/trajectories')
+        # exclude files
+        template_folders = [f for f in template_folders if not '.' in f]
+
+        return template_folders
+
 
 
 
