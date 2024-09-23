@@ -106,6 +106,7 @@ class LfD():
         self.end_record()
 
     def end_record(self):
+        self.robot.vibrate(0.2)
         self.buttons.stop_listening()
         goal = self.robot.curr_pose
         goal.header = Header(seq=1, stamp=rospy.Time.now(), frame_id="map")
@@ -124,6 +125,7 @@ class LfD():
     def record_step(self):
     
         if self.buttons.pressed:
+            rospy.loginfo("Button pressed.")
             self.buttons.pressed=False
             self.robot.vibrate(0.2)
             
@@ -153,10 +155,6 @@ class LfD():
         self.recorded_img_feedback_flag.extend([self.buttons.img_feedback_flag]*len(poses))
         self.recorded_spiral_flag.extend([self.buttons.spiral_flag]*len(poses))
         self.recorded_compensation_flag.extend([self.buttons.compensation_flag]*len(poses))
-
-        if self.buttons.pressed:
-            self.buttons.pressed=False
-            self.robot.vibrate(0.2)
         self.rate.sleep()
 
 
@@ -228,7 +226,8 @@ class LfD():
             attractor_change_rate = np.linalg.norm(np.array(list(self.data['recorded_pose'][self.time_index].pose.position)) - np.array(list(self.data['recorded_pose'][max(0, self.time_index-self.window_size_steps)].pose.position)))
         else:
             attractor_change_rate = 1
-        if attractor_change_rate < 5e-3 and self.time_index % np.floor(self.control_rate/self.compensation_rate) == 0 and self.data['recorded_compensation_flag'][self.time_index]:
+        #if attractor_change_rate < 5e-3 and self.time_index % np.floor(self.control_rate/self.compensation_rate) == 0 and self.data['recorded_compensation_flag'][self.time_index]:
+        if self.time_index % np.floor(self.control_rate/self.compensation_rate) == 0 and self.data['recorded_compensation_flag'][self.time_index]:
             curr_pose = deepcopy(self.robot.curr_pose)
             rospy.loginfo("Compensating")
             goal_pose = deepcopy(transform_pose(self.data['recorded_pose'][self.time_index], self.total_transform))
@@ -239,7 +238,7 @@ class LfD():
             # self.compensation_transform[:3,3]=0
         # elif attractor_change_rate > 5e-4:
         #     self.compensation_transform = np.eye(4)
-        else:
+        elif self.data['recorded_compensation_flag'][self.time_index] == False:
             self.compensation_transform = np.eye(4)
         ### Perform camera corrections
         if self.data['recorded_img_feedback_flag'][self.time_index] and not self.camera.starting and (camera_delay * self.control_rate) < self.acceptable_camera_delay_steps and self.time_index % np.floor(self.control_rate/self.camera._rate) == 0:

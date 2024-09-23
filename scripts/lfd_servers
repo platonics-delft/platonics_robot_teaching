@@ -3,6 +3,7 @@ import rospy
 import rospkg
 import actionlib
 from lfd import LfD
+import dynamic_reconfigure.client
 import yaml
 from std_msgs.msg import Float32MultiArray, String
 import numpy as np
@@ -58,6 +59,9 @@ class LfDServer():
         self._solve_slider_client = actionlib.SimpleActionClient('solveSlider', SolveSliderAction)
         self._debug_publisher = rospy.Publisher('/debug', String, queue_size=10)
         self._gripper_width_subscriber = rospy.Subscriber('/gripper_config', Float32MultiArray, self.gripper_width_callback)
+        self._exposure_client = dynamic_reconfigure.client.Client("/camera/stereo_module", timeout=10)
+        self._detection_params = {'exposure': 9000, 'enable_auto_exposure': False}
+        self._running_params = {'enable_auto_exposure': True}
 
     def gripper_width_callback(self, msg: Float32MultiArray):
         self._lfd.grip_open_width = msg.data[0]
@@ -138,6 +142,7 @@ class LfDServer():
         self._open_gripper_action_server.set_succeeded(result)
 
     def execute_execute_sequence(self, goal: LfdExecuteSequenceGoal):
+        self._exposure_client.update_configuration(self._running_params)
         rospy.loginfo("Received request")
         feedback = LfdExecuteSequenceFeedback()
         result = LfdExecuteSequenceResult()
@@ -193,6 +198,7 @@ class LfDServer():
 
 
     def execute_record(self, goal: LfdRecordGoal):
+        self._exposure_client.update_configuration(self._running_params)
         result = LfdRecordResult()
         if not self._lfd.init_record(0.005, goal.template_name):
             result.success = False
