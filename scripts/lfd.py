@@ -111,7 +111,7 @@ class LfD():
         goal = self.robot.curr_pose
         goal.header = Header(seq=1, stamp=rospy.Time.now(), frame_id="map")
         self.robot.goal_pub.publish(goal)
-        self.set_stiffness_execution()
+        #self.set_stiffness_execution()
         rospy.loginfo("Ending trajectory recording")
         self.data = {
             'recorded_pose': self.recorded_pose,
@@ -168,10 +168,10 @@ class LfD():
         self.execute_end()
 
     def set_stiffness_spiral(self):
-        self.robot.set_stiffness(2000, 2000, 1000, 50, 50, 50, 0)
+        self.robot.set_stiffness(2000, 2000, 1000, 40, 40, 40, 0)
 
     def set_stiffness_execution(self):
-        self.robot.set_stiffness(2000, 2000, 2000, 50, 50, 50, 0)
+        self.robot.set_stiffness(2000, 2000, 2000, 40, 40, 40, 0)
 
     def set_stiffness_safe(self):
         self.robot.set_stiffness(self.robot.K_pos_safe, self.robot.K_pos_safe, self.robot.K_pos_safe, self.robot.K_ori_safe, self.robot.K_ori_safe, self.robot.K_ori_safe, 0)
@@ -191,7 +191,7 @@ class LfD():
         self.robot.set_K.update_configuration({"max_delta_lin": 0.05})
         self.robot.set_K.update_configuration({"max_delta_ori": 0.50}) 
         self.robot.set_K.update_configuration({"joint_default_damping": 0.00})
-        self.robot.offset_compensator(10)
+        #self.robot.offset_compensator(10)
 
         self.time_index=0
 

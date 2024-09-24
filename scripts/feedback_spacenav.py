@@ -9,7 +9,7 @@ class FeedbackSpacenav(Feedback):
     def __init__(self):
         super().__init__()
         self.feedback=np.zeros(3)
-        self.feedback_gain=0.002
+        self.feedback_gain=0.0005
         self.length_scale = 0.005
         self.correction_window = 100
         self.feedback_treshold=0.001
@@ -32,7 +32,7 @@ class FeedbackSpacenav(Feedback):
                 delta_y = self.feedback[1]*se
                 delta_z = self.feedback[2]*se
 
-                data['recorded_pose'][j].pose.position.x += delta_x
-                data['recorded_pose'][j].pose.position.y += delta_y
+                #data['recorded_pose'][j].pose.position.x += delta_x
+                #data['recorded_pose'][j].pose.position.y += delta_y
                 data['recorded_pose'][j].pose.position.z += delta_z
         return data
