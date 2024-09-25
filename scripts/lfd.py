@@ -186,7 +186,7 @@ class LfD():
         self.compensation_transform = np.eye(4)
         self.servoing_transform = np.eye(4)
         self.spiral_transform = np.eye(4)
-        self.robot.go_to_pose_ik(transform_pose(self.data['recorded_pose'][0],self.total_transform)) 
+        self.robot.go_to_pose_ik(transform_pose(self.data['recorded_pose'][0],self.total_transform), interp_dist=0.001, interp_dist_joint=0.005) 
         self.set_stiffness_execution()
         self.robot.set_K.update_configuration({"max_delta_lin": 0.05})
         self.robot.set_K.update_configuration({"max_delta_ori": 0.50}) 

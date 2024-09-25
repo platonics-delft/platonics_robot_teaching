@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   genmsg
   actionlib_msgs
   actionlib
+  actionlib_tools
   message_generation
   platonics_vision
   rospkg
