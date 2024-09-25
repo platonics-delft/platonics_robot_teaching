@@ -2,13 +2,20 @@ cmake_minimum_required(VERSION 3.0.2)
 project(skills_manager)
 
 find_package(catkin REQUIRED COMPONENTS
-  roscpp
   rospy
   std_msgs
+  sensor_msgs
+  geometry_msgs
   genmsg
   actionlib_msgs
   actionlib
   message_generation
+  platonics_vision
+  rospkg
+  dynamic_reconfigure
+  cv_bridge
+  panda_ros
+  tf
 )
 
 
