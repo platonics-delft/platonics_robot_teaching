@@ -132,7 +132,7 @@ class LfD():
         if self.buttons.pause and not(self.buttons.end):
             self.rate.sleep()
             return
-        poses=  interpolate_poses(self.recorded_pose[-1],self.robot.curr_pose, self.safe_distance_lin, self.safe_distance_ori)[1:]
+        poses=  interpolate_poses(self.recorded_pose[-1],self.robot.curr_pose, 0.002, self.safe_distance_ori)[1:]
         
         grip_value = self.grip_close_width if self.buttons.gripper_closed else self.grip_open_width
         change_gripper_state = self.gripper_state != self.buttons.gripper_closed
