@@ -20,14 +20,13 @@ Our solution to is made fully open-source to allow the community to build on top
 
 ## Installation
 
-Follow the instructions here to install the controller on the computer connected to the robot:
+Follow the instructions here to install the controller on the computer directly connected to the robot:
 [Franka Human Friendly Controllers](https://github.com/franzesegiovanni/franka_human_friendly_controllers)
 
-Follow the instructions to install the vision packages on
-[Platonics Vision](https://github.com/platonics-delft/platonics_vision)
+Then, make another workspace on the computer connected
+to the camera and also to the robot through ethernet and clone the rest of the repositories.
 
-You can run the following commands to install the [Panda Utils](https://github.com/platonics-delft/panda-ros-py) package (which should also be in the same directory as the rest of the packages 
-on the computer connected to the camera and to the robot via ethernet):
+For example, for [Panda Utils](https://github.com/platonics-delft/panda-ros-py) package:
 ```
 cd robot_ws
 mkdir src
@@ -39,6 +38,12 @@ cd ../..
 catkin build
 source devel/setup.bash
 ```
+Similarly, clone [this same repository](https://github.com/platonics-delft/platonics_robot_teaching) also into 
+your workspace. 
+
+Follow the instructions to install the vision packages on
+[Platonics Vision](https://github.com/platonics-delft/platonics_vision), which
+includes the installation of the realsense camera ROS packages.
 
 Follow the instructions to install the GUI packages on
 [Platonics GUI](https://github.com/platonics-delft/platonics_gui).
@@ -49,6 +54,20 @@ And finally, the instructions on [Platonics GUI](https://github.com/platonics-de
 indicate how to launch everything with a few simple commands. 
 
 Please remember to source the workspace in every terminal you open.
+
+## Dependencies
+Note that our packages have requirements.txt files when applicable for Python packages, so that pip can be
+used to install all dependecies. Similarly the ROS packages
+also have their dependencies in their CMakeLists.txt and package.xml files so 'rosdep' can be used. 
+
+Nonetheless here we list our Python dependencies:
+ - [Numpy and Numpy-quaternion](https://numpy.org/install/)
+ - [OpenCV](https://pypi.org/project/opencv-python/)
+ - [Pynput](https://github.com/bdaiinstitute/spatialmath-python)
+ - [Spatial math](https://github.com/bdaiinstitute/spatialmath-python)
+ - [Robotics toolbox](https://github.com/petercorke/robotics-toolbox-python)
+ - [Panda-py](https://github.com/JeanElsner/panda-py)
+ - [PyYAML](https://github.com/yaml/pyyaml)
 
 ## (Optinally, without the GUI) Run only the services included in this repository
 
