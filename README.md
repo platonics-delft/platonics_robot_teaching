@@ -69,6 +69,9 @@ Nonetheless here we list our Python dependencies:
  - [Panda-py](https://github.com/JeanElsner/panda-py)
  - [PyYAML](https://github.com/yaml/pyyaml)
 
+## Execution data from trials
+Our execution data as well as recorded demonstrations can be found in the [Platonics Dataset](https://github.com/platonics-delft/platonics_dataset) repository. 
+
 ## Recording
 
 During recording of demonstraions you can give certain flags to the robot by using the buttons
