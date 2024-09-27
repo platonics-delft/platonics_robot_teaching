@@ -69,6 +69,17 @@ Nonetheless here we list our Python dependencies:
  - [Panda-py](https://github.com/JeanElsner/panda-py)
  - [PyYAML](https://github.com/yaml/pyyaml)
 
+## Recording
+
+During recording of demonstraions you can give certain flags to the robot by using the buttons
+on the robot. The flags are:
+- 'Up': Pause
+- 'Down': Spiraling
+- 'Right': Offset compenestation
+- 'Checkmark': Camera Feedback
+- 'Cross': Stop recording
+- 'Circle': Gripper Toggle
+
 ## (Optinally, without the GUI) Run only the services included in this repository
 
 Ensure that the franka human friendly variable cartesian impedance controller is
@@ -84,15 +95,4 @@ Then, 4 services become available:
 - \lfdExecuteSequence: Execute a sequence of recordings
 - \lfdExecuteSkill: Execute a skill which can contain multiple sequences or
   other skills
-
-## Recording
-
-During recording you can give certain flags to the robot by using the buttons
-on the robot. The flags are:
-- 'Up': Pause
-- 'Down': Spiraling
-- 'Right': Offset compenestation
-- 'Checkmark': Camera Feedback
-- 'Cross': Stop recording
-- 'Circle': Gripper Toggle
 
