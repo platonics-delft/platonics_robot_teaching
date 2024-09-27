@@ -80,7 +80,7 @@ on the robot. The flags are:
 - 'Cross': Stop recording
 - 'Circle': Gripper Toggle
 
-## (Optinally, without the GUI) Run only the services included in this repository
+## (Optionally, without the GUI) Run only the services included in this repository
 
 Ensure that the franka human friendly variable cartesian impedance controller is
 running.
