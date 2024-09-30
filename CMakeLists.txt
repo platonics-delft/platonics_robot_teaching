@@ -12,7 +12,6 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib_tools
   message_generation
   platonics_vision
-  rospkg
   dynamic_reconfigure
   cv_bridge
   panda_ros
@@ -36,6 +35,7 @@ add_action_files(
   LfdRecord.action
   LfdExecuteSequence.action
   LfdExecuteSkill.action
+  LfdExecuteSkillSequence.action
   AbortGripper.action
 )
 

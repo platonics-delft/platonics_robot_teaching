@@ -14,6 +14,7 @@ from platonics_vision.msg import SolveSliderGoal, SolveSliderAction
 from skills_manager.msg import LfdExecuteSequenceAction, LfdExecuteSequenceGoal, LfdExecuteSequenceResult, LfdExecuteSequenceFeedback
 from skills_manager.msg import LfdHomeAction, LfdHomeGoal, LfdHomeResult, LfdHomeFeedback
 from skills_manager.msg import AbortGripperAction, AbortGripperGoal, AbortGripperResult, AbortGripperFeedback
+from skills_manager.msg import LfdExecuteSkillSequenceAction, LfdExecuteSkillSequenceGoal, LfdExecuteSkillSequenceResult, LfdExecuteSkillSequenceFeedback
 from skills_manager.srv import ListTrajectories, ListTrajectoriesRequest, ListTrajectoriesResponse, ListTemplates, ListTemplatesRequest, ListTemplatesResponse, ListSkills, ListSkillsRequest, ListSkillsResponse
 from platonics_vision.srv import IterativeRegistrationLocalizer, IterativeRegistrationLocalizerRequest, IterativeRegistrationLocalizerResponse
 from platonics_vision.srv import MultiSiftRegistrationLocalizer, MultiSiftRegistrationLocalizerRequest, MultiSiftRegistrationLocalizerResponse
@@ -40,6 +41,10 @@ class LfDServer():
             'lfdExecuteSkill', LfdExecuteSkillAction, self.execute_skill, auto_start=False
         )
         self._execute_skill_server.start()
+        self._execute_skill_sequence_server = actionlib.SimpleActionServer(
+            'lfdExecuteSkillSequence', LfdExecuteSkillSequenceAction, self.execute_skill_sequence, auto_start=False
+        )
+        self._execute_skill_sequence_server.start()
         self._home_action_server = actionlib.SimpleActionServer(
             'lfdHome', LfdHomeAction, self.execute_home, auto_start=False
         )
@@ -141,9 +146,93 @@ class LfDServer():
         result.success = True
         self._open_gripper_action_server.set_succeeded(result)
 
+    def execute_skill_sequence(self, goal: LfdExecuteSkillSequenceGoal):
+        self._exposure_client.update_configuration(self._running_params)
+        feedback = LfdExecuteSkillSequenceFeedback()
+        result = LfdExecuteSkillSequenceResult()
+        if goal.localize_box:
+            if goal.template_name == '':
+                available_templates = self._lfd.list_all_available_templates()
+                multi_sift_request = MultiSiftRegistrationLocalizerRequest()
+                multi_sift_request.template_folder_names = available_templates
+                response: MultiSiftRegistrationLocalizerResponse = self._get_closest_template(multi_sift_request)
+                goal.template_name = response.closest_template_name
+
+            request = IterativeRegistrationLocalizerRequest()
+            request.steps.data = 3
+            request.template_file_name.data = goal.template_name
+            resp: IterativeRegistrationLocalizerResponse = self.iterative_localizer(request)
+            self._lfd.localization_transform = pose_2_transformation(resp.pose)
+        available_trajectories = self._lfd.list_all_available_trajectories(goal.template_name)
+        available_skills = self._lfd.list_all_available_skills(goal.template_name)
+        aborting = False
+        for skill_name in goal.skill_names:
+            if skill_name in available_skills:
+                self.debug(f"Executing {skill_name} as skill")
+                skill_file = rospkg.RosPack().get_path('platonics_dataset') + '/trajectories/' + goal.template_name + '/' + skill_name + ".yaml"
+                skill_config = yaml.safe_load(open(skill_file))
+                for action, action_config in skill_config.items():
+                    if action_config['action_name'] == 'lfdExecuteSequence':
+                        goal_sequence = LfdExecuteSequenceGoal()
+                        goal_sequence.skill_names = action_config['skill_names']
+                        goal_sequence.template_name = goal.template_name
+                        self._execute_sequence_action_client.send_goal(goal_sequence)
+                        while not self._execute_sequence_action_client.get_result():
+                            if self._execute_skill_server.is_preempt_requested():
+                                self._execute_sequence_action_client.cancel_all_goals()
+                                self._execute_skill_server.set_preempted()
+                                result.success = False
+                                self._execute_skill_server.set_succeeded(result)
+                                return
+                            #feedback = self._execute_sequence_action_client.get_feedback()
+                            self._execute_skill_sequence_server.publish_feedback(feedback)
+                            self._lfd.rate.sleep()
+                    if action_config['action_name'] == 'solveSlider':
+                        goal_skill = SolveSliderGoal()
+                        goal_skill.task_stage = action_config['task_stage']
+                        self._solve_slider_client.send_goal(goal_skill)
+                        while not self._solve_slider_client.get_result():
+                            if self._execute_skill_server.is_preempt_requested():
+                                self._solve_slider_client.cancel_all_goals()
+                                self._execute_skill_server.set_preempted()
+                                result.success = False
+                                self._execute_skill_server.set_succeeded(result)
+                                return
+                            self._lfd.rate.sleep()
+            elif skill_name in available_trajectories:
+                self.debug(f"Executing {skill_name} as trajectory")
+                if aborting:
+                    self._lfd.execute_end()
+                    break
+                feedback.skill_name = skill_name
+                self._lfd.buttons.start_listening()
+                self._lfd.load(skill_name, goal.template_name)
+                self._lfd.execute_start()
+                retry_insertion_flag = 0
+                while not(self._lfd.buttons.end):
+                    end_execute = self._lfd.execute_step(retry_insertion_flag)
+                    if self._execute_skill_sequence_server.is_preempt_requested():
+                        result.success = False
+                        end_execute = True
+                        aborting = True
+                        self._execute_sequence_action_server.set_preempted(result)
+                    if end_execute:
+                        break
+                    feedback.camera_feedback = self._lfd.data['recorded_img_feedback_flag'][self._lfd.time_index]
+                    feedback.spiraling = self._lfd.data['recorded_spiral_flag'][self._lfd.time_index]
+                    feedback.gripper = self._lfd.gripper_state
+                    feedback.waypoint_index = self._lfd.time_index
+                    self._execute_skill_sequence_server.publish_feedback(feedback)
+                self._lfd.execute_end()
+                self._lfd.save(skill_name, goal.template_name)
+        if result.success:
+            self._execute_sequence_action_server.set_succeeded(result)
+        if aborting:
+            self._lfd.abort()
+
+
     def execute_execute_sequence(self, goal: LfdExecuteSequenceGoal):
         self._exposure_client.update_configuration(self._running_params)
-        rospy.loginfo("Received request")
         feedback = LfdExecuteSequenceFeedback()
         result = LfdExecuteSequenceResult()
         result.success = True

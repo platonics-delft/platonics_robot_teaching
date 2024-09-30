@@ -1,0 +1,12 @@
+string[] skill_names
+bool localize_box
+string template_name
+---
+bool success
+---
+string skill_name
+int32 waypoint_index
+bool spiraling
+bool camera_feedback
+bool stiffness
+bool gripper
