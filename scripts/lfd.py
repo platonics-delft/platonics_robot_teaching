@@ -171,7 +171,7 @@ class LfD():
         self.robot.set_stiffness(2000, 2000, 1000, 40, 40, 40, 0)
 
     def set_stiffness_execution(self):
-        self.robot.set_stiffness(2000, 2000, 2000, 40, 40, 40, 0)
+        self.robot.set_stiffness(4000, 4000, 4000, 40, 40, 40, 0)
 
     def set_stiffness_safe(self):
         self.robot.set_stiffness(self.robot.K_pos_safe, self.robot.K_pos_safe, self.robot.K_pos_safe, self.robot.K_ori_safe, self.robot.K_ori_safe, self.robot.K_ori_safe, 0)
