@@ -25,6 +25,8 @@ def point_iter(self):
 
 Point.__iter__ = point_iter
 
+SPEED_FACTOR = 3
+
 
 
 class LfD():
@@ -38,6 +40,7 @@ class LfD():
 
         self.camera = Camera()
         self.robot= Panda()
+        self.robot.attractor_distance_threshold=0.01
         self.buttons = Feedback()
         self.space_nav_feedback = FeedbackSpacenav()
 
@@ -132,7 +135,7 @@ class LfD():
         if self.buttons.pause and not(self.buttons.end):
             self.rate.sleep()
             return
-        poses=  interpolate_poses(self.recorded_pose[-1],self.robot.curr_pose, 0.002, self.safe_distance_ori)[1:]
+        poses=  interpolate_poses(self.recorded_pose[-1],self.robot.curr_pose, 0.003, self.safe_distance_ori)[1:]
         
         grip_value = self.grip_close_width if self.buttons.gripper_closed else self.grip_open_width
         change_gripper_state = self.gripper_state != self.buttons.gripper_closed
@@ -180,13 +183,13 @@ class LfD():
         self.buttons.start_listening()
 
         rospy.loginfo("Executing trajectory.")
-        self.rate=rospy.Rate(self.control_rate)
+        self.rate=rospy.Rate(self.control_rate*SPEED_FACTOR)
 
         self.total_transform = self.localization_transform
         self.compensation_transform = np.eye(4)
         self.servoing_transform = np.eye(4)
         self.spiral_transform = np.eye(4)
-        self.robot.go_to_pose_ik(transform_pose(self.data['recorded_pose'][0],self.total_transform), interp_dist=0.001, interp_dist_joint=0.005) 
+        self.robot.go_to_pose_ik(transform_pose(self.data['recorded_pose'][0],self.total_transform), interp_dist=0.003, interp_dist_joint=0.015) 
         self.set_stiffness_execution()
         self.robot.set_K.update_configuration({"max_delta_lin": 0.05})
         self.robot.set_K.update_configuration({"max_delta_ori": 0.50}) 
@@ -209,13 +212,13 @@ class LfD():
         if change_gripper_state:
             self.activate_gripper(self.data['recorded_gripper'][self.time_index])
 
-        self.robot.change_in_safety_check = False
         self.buttons.end = False
 
 
     def execute_step(self, retry_insertion_flag) -> bool:
         self.data= self.buttons.human_feedback(self.data, self.time_index)
-        self.data = self.space_nav_feedback.human_feedback(self.data, self.time_index)
+        if self.time_index % np.floor(self.control_rate/self.space_nav_feedback._rate) == 0:
+            self.data = self.space_nav_feedback.human_feedback(self.data, self.time_index)
 
         current_time=rospy.Time.now().to_sec()
         camera_delay = current_time-self.camera.time
@@ -262,12 +265,6 @@ class LfD():
             self.retry_counter = self.retry_counter + 1
         ### Safety check
         if self.robot.safety_check: self.time_index += 1
-        if self.robot.change_in_safety_check:
-            if self.robot.safety_check:
-                self.set_stiffness_execution()
-            else:
-                # print("Safety violation detected. Making the robot compliant")
-                self.set_stiffness_safe()
         ### Publish the goal pose
         self.time_index = min(self.time_index, len(self.data['recorded_pose'])-1)
         goal_pose = self.data['recorded_pose'][self.time_index]

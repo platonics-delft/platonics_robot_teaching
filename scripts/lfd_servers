@@ -22,6 +22,8 @@ from platonics_vision.srv import MultiSiftRegistrationLocalizer, MultiSiftRegist
 from panda_ros.pose_transform_functions import pose_2_transformation
 from geometry_msgs.msg import PoseStamped
 
+NB_ITERATIVE_STEPS = 2
+
 class LfDServer():
     def __init__(self):
         rospy.init_node("learning_node")
@@ -83,7 +85,7 @@ class LfDServer():
                 response: MultiSiftRegistrationLocalizerResponse = self._get_closest_template(multi_sift_request)
                 goal.template_name = response.closest_template_name
             request = IterativeRegistrationLocalizerRequest()
-            request.steps.data = 3
+            request.steps.data = NB_ITERATIVE_STEPS
             request.template_file_name.data = goal.template_name
             resp: IterativeRegistrationLocalizerResponse = self.iterative_localizer(request)
             self._lfd.localization_transform = pose_2_transformation(resp.pose)
@@ -159,7 +161,7 @@ class LfDServer():
                 goal.template_name = response.closest_template_name
 
             request = IterativeRegistrationLocalizerRequest()
-            request.steps.data = 3
+            request.steps.data = NB_ITERATIVE_STEPS
             request.template_file_name.data = goal.template_name
             resp: IterativeRegistrationLocalizerResponse = self.iterative_localizer(request)
             self._lfd.localization_transform = pose_2_transformation(resp.pose)
@@ -245,7 +247,7 @@ class LfDServer():
                 goal.template_name = response.closest_template_name
 
             request = IterativeRegistrationLocalizerRequest()
-            request.steps.data = 3
+            request.steps.data = NB_ITERATIVE_STEPS
             request.template_file_name.data = goal.template_name
             resp: IterativeRegistrationLocalizerResponse = self.iterative_localizer(request)
             self._lfd.localization_transform = pose_2_transformation(resp.pose)
