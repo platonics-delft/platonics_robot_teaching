@@ -33,7 +33,7 @@ class Camera():
         self.row_crop_pct_bot = 1 #1.0
         self.col_crop_pct_left = 0 #0.3
         self.col_crop_pct_right = 1 #0.7
-        self._rate = 20
+        self._rate = 5
 
         self.ds_factor = 4 # Downsample factor
 
@@ -180,13 +180,14 @@ class Camera():
         transform = transform_base_2_cam @ transform_correction @ np.linalg.inv(transform_base_2_cam)
 
         transform[2,3] = 0   # ignore z translation (in final transform/pose in base frame)
+
         return transform
 
     def get_transform(self, source_frame, target_frame):
         while True:
             try:
                 now = rospy.Time.now()
-                self._tf_listener.waitForTransform(source_frame, target_frame, now, rospy.Duration(4.0))
+                self._tf_listener.waitForTransform(source_frame, target_frame, now, rospy.Duration(1.0))
                 rp_tr, rp_rt = self._tf_listener.lookupTransform(source_frame, target_frame, now)
                 break
             except Exception as e:

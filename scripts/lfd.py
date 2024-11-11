@@ -25,7 +25,7 @@ def point_iter(self):
 
 Point.__iter__ = point_iter
 
-SPEED_FACTOR = 3
+SPEED_FACTOR = 2
 
 
 
@@ -34,13 +34,14 @@ class LfD():
     def __init__(self):
         super(LfD, self).__init__()
         self.control_rate = 60
+        self.record_rate = 60
         self.rate=rospy.Rate(self.control_rate)
         
         self._tf_broadcaster = tf.TransformBroadcaster()
 
         self.camera = Camera()
         self.robot= Panda()
-        self.robot.attractor_distance_threshold=0.01
+        self.robot.attractor_distance_threshold=0.02
         self.buttons = Feedback()
         self.space_nav_feedback = FeedbackSpacenav()
 
@@ -68,6 +69,7 @@ class LfD():
         rospy.sleep(1)
 
     def init_record(self, trigger, template_name: str):
+        self.rate=rospy.Rate(self.record_rate)
         ros_pack = rospkg.RosPack()
         self._package_path = ros_pack.get_path('platonics_dataset')
         if not os.path.exists(self._package_path + '/trajectories/' + template_name):
@@ -162,8 +164,8 @@ class LfD():
 
 
 
-    def execute(self, retry_insertion_flag=0):
-        self.execute_start()
+    def execute(self, retry_insertion_flag=0, speed_factor: float = 1.0):
+        self.execute_start(speed_factor)
         while not(self.buttons.end):
             end_execute = self.execute_step(retry_insertion_flag)
             if end_execute:
@@ -179,11 +181,11 @@ class LfD():
     def set_stiffness_safe(self):
         self.robot.set_stiffness(self.robot.K_pos_safe, self.robot.K_pos_safe, self.robot.K_pos_safe, self.robot.K_ori_safe, self.robot.K_ori_safe, self.robot.K_ori_safe, 0)
 
-    def execute_start(self):
+    def execute_start(self, speed_factor: float):
         self.buttons.start_listening()
 
         rospy.loginfo("Executing trajectory.")
-        self.rate=rospy.Rate(self.control_rate*SPEED_FACTOR)
+        self.rate=rospy.Rate(self.control_rate*speed_factor)
 
         self.total_transform = self.localization_transform
         self.compensation_transform = np.eye(4)
@@ -244,7 +246,7 @@ class LfD():
         elif self.data['recorded_compensation_flag'][self.time_index] == False:
             self.compensation_transform = np.eye(4)
         ### Perform camera corrections
-        if self.data['recorded_img_feedback_flag'][self.time_index] and not self.camera.starting and (camera_delay * self.control_rate) < self.acceptable_camera_delay_steps and self.time_index % np.floor(self.control_rate/self.camera._rate) == 0:
+        if self.data['recorded_img_feedback_flag'][self.time_index] and not self.camera.starting and (camera_delay * self.camera._rate) < self.acceptable_camera_delay_steps and self.time_index % np.floor(self.control_rate/self.camera._rate) == 0:
             self.servoing_transform=self.camera.sift_matching(target_img=self.data['recorded_img'][self.time_index])
             self.total_transform = self.servoing_transform @ self.total_transform
         

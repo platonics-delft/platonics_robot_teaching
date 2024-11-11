@@ -22,7 +22,7 @@ from platonics_vision.srv import MultiSiftRegistrationLocalizer, MultiSiftRegist
 from panda_ros.pose_transform_functions import pose_2_transformation
 from geometry_msgs.msg import PoseStamped
 
-NB_ITERATIVE_STEPS = 2
+NB_ITERATIVE_STEPS = 3
 
 class LfDServer():
     def __init__(self):
@@ -96,6 +96,7 @@ class LfDServer():
                 goal_sequence = LfdExecuteSequenceGoal()
                 goal_sequence.skill_names = action_config['skill_names']
                 goal_sequence.template_name = goal.template_name
+                goal_sequence.speed_factor = goal.speed_factor
                 self._execute_sequence_action_client.send_goal(goal_sequence)
                 while not self._execute_sequence_action_client.get_result():
                     if self._execute_skill_server.is_preempt_requested():
@@ -178,6 +179,7 @@ class LfDServer():
                         goal_sequence = LfdExecuteSequenceGoal()
                         goal_sequence.skill_names = action_config['skill_names']
                         goal_sequence.template_name = goal.template_name
+                        goal_sequence.speed_factor = goal.speed_factor
                         self._execute_sequence_action_client.send_goal(goal_sequence)
                         while not self._execute_sequence_action_client.get_result():
                             if self._execute_skill_server.is_preempt_requested():
@@ -209,7 +211,7 @@ class LfDServer():
                 feedback.skill_name = skill_name
                 self._lfd.buttons.start_listening()
                 self._lfd.load(skill_name, goal.template_name)
-                self._lfd.execute_start()
+                self._lfd.execute_start(goal.speed_factor)
                 retry_insertion_flag = 0
                 while not(self._lfd.buttons.end):
                     end_execute = self._lfd.execute_step(retry_insertion_flag)
@@ -260,7 +262,7 @@ class LfDServer():
             feedback.skill_name = skill_name
             self._lfd.buttons.start_listening()
             self._lfd.load(skill_name, template_name)
-            self._lfd.execute_start()
+            self._lfd.execute_start(goal.speed_factor)
             retry_insertion_flag = 0
             while not(self._lfd.buttons.end):
                 end_execute = self._lfd.execute_step(retry_insertion_flag)

@@ -1,6 +1,7 @@
 string[] skill_names
 bool localize_box
 string template_name
+float32 speed_factor
 ---
 bool success
 ---
