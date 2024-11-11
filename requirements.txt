@@ -1,4 +1,4 @@
 numpy==1.24.4
 panda-python==0.8.1
-opencv-pypthon==4.9.0
+opencv-python==4.9.0
 pynput==1.7.6
