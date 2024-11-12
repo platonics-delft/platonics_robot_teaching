@@ -170,7 +170,7 @@ class Camera():
                 recorded_image_msg = CompressedImage()
                 recorded_image_msg.format = "jpeg"
                 recorded_image_msg.data = compressed_image
-                recorded_image_msg_raw = self.bridge.cv2_to_imgmsg(self._annoted_image)
+                recorded_image_msg_raw = self.bridge.cv2_to_imgmsg(self._annoted_image, encoding="bgr8")
                 self.current_template_pub_compressed.publish(recorded_image_msg)  
                 self.current_template_pub_raw.publish(recorded_image_msg_raw)
             except Exception as e:
