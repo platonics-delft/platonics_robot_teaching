@@ -7,6 +7,7 @@ import time
 import tf
 from camera_feedback import Camera
 from std_msgs.msg import Header
+from std_msgs.msg import Bool
 import rospkg
 from geometry_msgs.msg import PoseStamped
 from panda_ros import Panda
@@ -65,8 +66,15 @@ class LfD():
         self.acceptable_camera_delay_steps = 2
 
         self.pose_curr_2_goal_pub = rospy.Publisher('/pose_curr_to_goal', PoseStamped, queue_size=0)
+        self._camera_trigger_publisher = rospy.Publisher('/camera_trigger', Bool, queue_size=0)
+        rospy.Subscriber('/camera_trigger', Bool, self.camera_trigger_callback)
 
         rospy.sleep(1)
+
+    def camera_trigger_callback(self, msg: Bool):
+        self.servoing_transform=self.camera.sift_matching(target_img=self.data['recorded_img'][self.time_index])
+        self.total_transform = self.servoing_transform @ self.total_transform
+
 
     def init_record(self, trigger, template_name: str):
         self.rate=rospy.Rate(self.record_rate)
@@ -247,8 +255,7 @@ class LfD():
             self.compensation_transform = np.eye(4)
         ### Perform camera corrections
         if self.data['recorded_img_feedback_flag'][self.time_index] and not self.camera.starting and (camera_delay * self.camera._rate) < self.acceptable_camera_delay_steps and self.time_index % np.floor(self.control_rate/self.camera._rate) == 0:
-            self.servoing_transform=self.camera.sift_matching(target_img=self.data['recorded_img'][self.time_index])
-            self.total_transform = self.servoing_transform @ self.total_transform
+            self._camera_trigger_publisher.publish(Bool(True))
         
         ### Perform spiral search
         if self.data['recorded_spiral_flag'][self.time_index] and not(self.buttons.pressed):
