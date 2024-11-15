@@ -2,6 +2,7 @@
 import rospy
 import rospkg
 import actionlib
+from std_srvs.srv import Trigger, TriggerRequest, TriggerResponse
 from lfd import LfD
 import dynamic_reconfigure.client
 import yaml
@@ -55,6 +56,7 @@ class LfDServer():
         rospy.Service("list_trajectories", ListTrajectories, self.handle_list_trajectories)
         rospy.Service("list_templates", ListTemplates, self.handle_list_templates)
         rospy.Service("list_skills", ListSkills, self.handle_list_skills)
+        rospy.Service("reset_transformation", Trigger, self.handle_tf_reset)
         rospy.wait_for_service('iterative_sift_localizer')
         self.iterative_localizer = rospy.ServiceProxy('iterative_sift_localizer', IterativeRegistrationLocalizer)
         self._get_closest_template = rospy.ServiceProxy('multi_sift_localization', MultiSiftRegistrationLocalizer)
@@ -130,6 +132,12 @@ class LfDServer():
         response.templates = self._lfd.list_all_available_templates()
         return response
 
+    def handle_tf_reset(self, request: TriggerRequest):
+        self._lfd.localization_transform = np.eye(4)
+        response = TriggerResponse()
+        response.success = True
+        self.debug(f"Transformation is now {np.array2string(self._lfd.localization_transform)}")
+        return response
 
     def handle_list_trajectories(self, request: ListTrajectoriesRequest):
         response = ListTrajectoriesResponse()
@@ -170,6 +178,7 @@ class LfDServer():
         available_trajectories = self._lfd.list_all_available_trajectories(goal.template_name)
         available_skills = self._lfd.list_all_available_skills(goal.template_name)
         aborting = False
+        self.debug(f"Executing with transformation:\n{np.array2string(self._lfd.localization_transform)}")
         for skill_name in goal.skill_names:
             if skill_name in available_skills:
                 self.debug(f"Executing {skill_name} as skill")
@@ -256,6 +265,7 @@ class LfDServer():
             self._lfd.localization_transform = pose_2_transformation(resp.pose)
         template_name = goal.template_name
         aborting = False
+        self.debug(f"Executing with transformation:\n{np.array2string(self._lfd.localization_transform)}")
         for skill_name in goal.skill_names:
             if aborting:
                 self._lfd.execute_end()
