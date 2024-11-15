@@ -94,7 +94,7 @@ class LfD():
                 # trigger for starting the recording
         self.robot.set_stiffness(0, 0, 0, 0, 0, 0, 0)
         self.robot.set_K.update_configuration({"joint_default_damping": 1.00})
-        self.recorded_pose = [self.robot.curr_pose]
+        self.recorded_pose = [transform_pose(self.robot.curr_pose, np.linalg.inv(self.localization_transform))]
         self.recorded_img = [self.camera.curr_image]
         self.recorded_img_feedback_flag = [False]
         self.recorded_spiral_flag = [False]
@@ -145,7 +145,14 @@ class LfD():
         if self.buttons.pause and not(self.buttons.end):
             self.rate.sleep()
             return
-        poses=  interpolate_poses(self.recorded_pose[-1],self.robot.curr_pose, 0.003, self.safe_distance_ori)[1:]
+        poses = interpolate_poses(
+                self.recorded_pose[-1],
+                transform_pose(
+                    self.robot.curr_pose,
+                    np.linalg.inv(self.localization_transform)),
+                0.003,
+                self.safe_distance_ori
+            )[1:]
         
         grip_value = self.grip_close_width if self.buttons.gripper_closed else self.grip_open_width
         change_gripper_state = self.gripper_state != self.buttons.gripper_closed
